@@ -160,6 +160,7 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle)
     ray.hitWall = false;
     ray.hitObject = nullptr;
     ray.distance = MAX_VIEW_DISTANCE;
+    ray.wallX = 0.0f;
 
     float posX = player.getX();
     float posY = player.getY();
@@ -262,6 +263,17 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle)
             {
                 ray.distance = 0.1f;
             }
+
+            // Вычисляем точку попадания на стене для текстурных координат
+            float wallX;
+            if (side == 0) {
+                wallX = posY + ray.distance * rayDirY;
+            } else {
+                wallX = posX + ray.distance * rayDirX;
+            }
+            wallX -= floor(wallX);
+            
+            ray.wallX = wallX;
 
             ray.mapX = mapX;
             ray.mapY = mapY;

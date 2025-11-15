@@ -14,6 +14,7 @@ add_executable(twenty-one-hours
     Game/Player/Player.cpp
     Game/Ray/RayCalc.cpp
     Game/Render/Pseudo3DRenderer.cpp
+    Game/Textures/TextureManager.cpp
 )
 
 target_include_directories(twenty-one-hours PRIVATE 
@@ -24,6 +25,7 @@ target_include_directories(twenty-one-hours PRIVATE
     Game/Player
     Game/Ray
     Game/Render
+    Game/Textures
 )
 
 target_link_libraries(twenty-one-hours PRIVATE 

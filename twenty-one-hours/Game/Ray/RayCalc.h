@@ -21,12 +21,12 @@ public:
         float hitX, hitY;
         int mapX, mapY; // Клетка карты где произошло столкновение
         int side;       // Сторона столкновения (0 - x, 1 - y)
+        float wallX;    // текстурная координата X
     };
 
     RayCalc(Player &p, Map &m);
     void calcRays(int rayCount);
     Ray calcSingleRay(float rayAngle);
-    //Ray calcSingleRay(float rayDirX, float rayDirY);
     const std::vector<Ray> &getRays() const;
     ObjectVisibilityData getObjectVisibility(GameObject *obj);
     

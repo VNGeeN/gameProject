@@ -16,7 +16,6 @@ public:
     GameObject *getObjectAt(float x, float y);
     std::vector<GameObject *> getObjects() const;
 
-    // Временная реализация - позже можно добавить настоящие объекты
     void addObject(std::unique_ptr<GameObject> object);
 
 private:

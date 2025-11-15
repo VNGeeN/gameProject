@@ -53,7 +53,6 @@ bool Map::isWall(float x, float y) const
 
 GameObject *Map::getObjectAt(float x, float y)
 {
-    // проверяем все объекты
     for (auto &obj : mObjects)
     {
         sf::Vector2f pos = obj->getPosition();

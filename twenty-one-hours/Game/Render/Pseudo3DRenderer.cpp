@@ -53,61 +53,18 @@ void Pseudo3DRenderer::renderWallSlice(int column, const RayCalc::Ray &ray)
 
     sf::Color wallColor = getWallColor(ray);
 
-    //  // Применяем затемнение для расстояния
+    // затемнение для расстояния
     wallColor.r = static_cast<sf::Uint8>(wallColor.r * brightness);
     wallColor.g = static_cast<sf::Uint8>(wallColor.g * brightness);
     wallColor.b = static_cast<sf::Uint8>(wallColor.b * brightness);
-
-    // wallColor.r *= brightness;
-    // wallColor.g *= brightness;
-    // wallColor.b *= brightness;
 
     wallSlice.setFillColor(wallColor);
 
     window.draw(wallSlice);
 }
 
-void Pseudo3DRenderer::renderObjects()
-{
-    // auto objects = map.getObjects();
-
-    // // Сортируем объекты по расстоянию (от дальних к ближним)
-    // std::sort(objects.begin(), objects.end(),
-    //           [this](GameObject *a, GameObject *b)
-    //           {
-    //               return getDistanceToPlayer(a) > getDistanceToPlayer(b);
-    //           });
-
-    // for (auto *obj : objects)
-    // {
-    //     auto visibility = rayCalc.getObjectVisibility(obj);
-    //     if (visibility.isVisible)
-    //     {
-    //         renderObject(obj, visibility);
-    //     }
-    // }
-}
-
 void Pseudo3DRenderer::renderObject(GameObject *obj, const ObjectVisibilityData &data)
 {
-    // obj->updateFromRayData(data);
-    // const auto &sprite = obj->getSprite();
-
-    // sf::Vector2f screenPos = calculateScreenPosition(obj->getPosition(), data.distance);
-    // float scale = calculateObjectScale(data.distance);
-
-    // sf::Sprite renderSprite = sprite;
-    // renderSprite.setScale(scale, scale);
-    // renderSprite.setPosition(screenPos);
-
-    // sf::Color color = renderSprite.getColor();
-    // float brightness = calculateBrightness(data.distance);
-    // color.r *= brightness;
-    // color.g *= brightness;
-    // color.b *= brightness;
-    // renderSprite.setColor(color);
-
-    // window.draw(renderSprite);
 }
 
 float Pseudo3DRenderer::calculateWallHeight(float distance)
@@ -115,7 +72,6 @@ float Pseudo3DRenderer::calculateWallHeight(float distance)
     if (distance <= 0) return 0;
     float height = window.getSize().y / distance;
     return height;
-    //return std::min(height, float(window.getSize().y));
 }
 
 float Pseudo3DRenderer::calculateObjectScale(float distance)

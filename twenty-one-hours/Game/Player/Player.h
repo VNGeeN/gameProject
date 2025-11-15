@@ -1,11 +1,12 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include "../Map/Map.h"
 
 class Player
 {
 public:
-    Player();
+    Player(Map& map);
 
     float getX() const { return x; }
     float getY() const { return y; }
@@ -20,4 +21,5 @@ public:
 private:
     float x, y;
     float angle;
+    Map& map;
 };

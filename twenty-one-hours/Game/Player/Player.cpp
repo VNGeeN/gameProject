@@ -2,51 +2,79 @@
 #include <cmath>
 #include <iostream>
 
-Player::Player(){
+Player::Player(Map &map) : map(map)
+{
     x = 1.5f;
     y = 1.5f;
-    angle = 0.0f;
-    fov = M_PI / 3.0f;
+    angle = 0.0f;      // смотрим вдоль оси X
+    fov = M_PI / 3.0f; // 60 градусов
 }
 
-void Player::moveForward(float distance){
-    // Временные переменные для новой позиции
+void Player::moveForward(float distance)
+{
+
     float newX = x + cos(angle) * distance;
     float newY = y + sin(angle) * distance;
-
-    // //проверка колизии с картой
-    // x = newX;
-    // y = newY;
-
-    // Простая проверка коллизий
-    if (newX >= 0.5f && newX <= 9.5f && newY >= 0.5f && newY <= 9.5f) {
+    
+    // Проверка коллизий с внутренними стенами
+    if (!map.isWall(newX, newY))
+    {
         x = newX;
         y = newY;
-        std::cout << "Moved to: " << x << ", " << y << std::endl;
+    }
+    else
+    {
+        // Можно добавить скольжение вдоль стен
+        // Пробуем двигаться только по X
+        if (!map.isWall(newX, y))
+        {
+            x = newX;
+        }
+        // Пробуем двигаться только по Y
+        else if (!map.isWall(x, newY))
+        {
+            y = newY;
+        }
     }
 }
 
-void Player::moveBackward(float distance){
+void Player::moveBackward(float distance)
+{
     float newX = x - cos(angle) * distance;
     float newY = y - sin(angle) * distance;
-    
-    // // TODO: Добавить проверку коллизий с картой
-    // x = newX;
-    // y = newY;
 
-    // Простая проверка коллизий
-    if (newX >= 0.5f && newX <= 9.5f && newY >= 0.5f && newY <= 9.5f) {
+    // Проверка коллизий с внутренними стенами
+    if (!map.isWall(newX, newY))
+    {
         x = newX;
         y = newY;
-        std::cout << "Moved to: " << x << ", " << y << std::endl;
+    }
+    else
+    {
+        // Скольжение вдоль стен
+        if (!map.isWall(newX, y))
+        {
+            x = newX;
+        }
+        else if (!map.isWall(x, newY))
+        {
+            y = newY;
+        }
     }
 }
 
-void Player::rotate(float angleOffset){
+void Player::rotate(float angleOffset)
+{
     angle += angleOffset;
 
     // Нормализуем угол
-    if (angle < 0) angle += 2 * M_PI;
-    if (angle >= 2 * M_PI) angle -= 2 * M_PI;
-    std::cout << "New angle: " << angle << std::endl;
+    if (angle < 0)
+    {
+        angle += 2 * M_PI;
+    }
+
+    if (angle >= 2 * M_PI)
+    {
+        angle -= 2 * M_PI;
+    }
 }

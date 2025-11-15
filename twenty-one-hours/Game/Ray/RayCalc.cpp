@@ -11,7 +11,6 @@ RayCalc::RayCalc(Player &p, Map &m) : player(p), map(m)
 
 //     for (int i = 0; i < rayCount; i++)
 //     {
-//         // Вычисляем угол для каждого луча на основе FOV игрока
 //         float cameraX = 2 * i / float(rayCount) - 1; // от -1 до 1
 //         float rayDirX = cos(player.getAngle()) + (-sin(player.getAngle())) * player.fov * cameraX;
 //         float rayDirY = sin(player.getAngle()) + (cos(player.getAngle())) * player.fov * cameraX;
@@ -21,7 +20,6 @@ RayCalc::RayCalc(Player &p, Map &m) : player(p), map(m)
 //         rays.push_back(ray);
 //     }
 
-//     // std::cout << "Calculated " << rays.size() << " rays" << std::endl;
 // }
 
 void RayCalc::calcRays(int rayCount)
@@ -32,8 +30,6 @@ void RayCalc::calcRays(int rayCount)
     float posY = player.getY();
     float angle = player.getAngle();
 
-    std::cout << "Player at: " << posX << ", " << posY << " angle: " << angle << std::endl;
-
     for (int i = 0; i < rayCount; i++)
     {
         // Вычисляем угол для текущего луча
@@ -42,8 +38,6 @@ void RayCalc::calcRays(int rayCount)
         Ray ray = calcSingleRay(rayAngle);
         rays.push_back(ray);
     }
-
-    std::cout << "Calculated " << rays.size() << " rays" << std::endl;
 }
 
 // RayCalc::Ray RayCalc::calcSingleRay(float angle)
@@ -173,46 +167,108 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle)
     // Нормализуем угол
     rayAngle = fmod(rayAngle, 2 * M_PI);
     if (rayAngle < 0)
+    {
         rayAngle += 2 * M_PI;
+    }
 
     float rayDirX = cos(rayAngle);
     float rayDirY = sin(rayAngle);
 
-    // Простой алгоритм - шагаем по лучу и проверяем стены
-    for (float t = 0; t < MAX_VIEW_DISTANCE; t += 0.05f)
+    // Текущая клетка карты
+    int mapX = static_cast<int>(posX);
+    int mapY = static_cast<int>(posY);
+
+    // Длина луча от одной стороны до другой в направлении луча
+    float deltaDistX = (rayDirX == 0) ? 1e30 : std::abs(1 / rayDirX);
+    float deltaDistY = (rayDirY == 0) ? 1e30 : std::abs(1 / rayDirY);
+
+    float sideDistX, sideDistY;
+    int stepX, stepY;
+    int side;
+
+    // Вычисляем step и initial sideDist
+    if (rayDirX < 0)
     {
-        float testX = posX + rayDirX * t;
-        float testY = posY + rayDirY * t;
-
-        int mapX = static_cast<int>(testX);
-        int mapY = static_cast<int>(testY);
-
-        // Проверка выхода за границы карты
-        if (mapX < 0 || mapX >= map.getWidth() || mapY < 0 || mapY >= map.getHeight())
-        {
-            ray.hitWall = true;
-            ray.distance = t;
-            ray.mapX = mapX;
-            ray.mapY = mapY;
-            ray.side = 0;
-            break;
-        }
-
-        // Проверка стены
-        if (map.getTitle(mapX, mapY) == '#')
-        {
-            ray.hitWall = true;
-            ray.distance = t;
-            ray.mapX = mapX;
-            ray.mapY = mapY;
-            ray.side = (abs(rayDirX) > abs(rayDirY)) ? 0 : 1;
-            break;
-        }
+        stepX = -1;
+        sideDistX = (posX - mapX) * deltaDistX;
+    }
+    else
+    {
+        stepX = 1;
+        sideDistX = (mapX + 1.0 - posX) * deltaDistX;
     }
 
-    if (ray.hitWall)
+    if (rayDirY < 0)
     {
-        std::cout << "Ray hit wall at (" << ray.mapX << "," << ray.mapY << ") distance: " << ray.distance << std::endl;
+        stepY = -1;
+        sideDistY = (posY - mapY) * deltaDistY;
+    }
+    else
+    {
+        stepY = 1;
+        sideDistY = (mapY + 1.0 - posY) * deltaDistY;
+    }
+
+    // DDA алгоритм
+    bool hit = false;
+    int steps = 0;
+    const int MAX_STEPS = 100; // Защита от бесконечного цикла
+
+    while (!hit && steps < MAX_STEPS)
+    {
+        steps++;
+
+        // Переход к следующей клетке
+        if (sideDistX < sideDistY)
+        {
+            sideDistX += deltaDistX;
+            mapX += stepX;
+            side = 0; // Вертикальная сторона
+        }
+        else
+        {
+            sideDistY += deltaDistY;
+            mapY += stepY;
+            side = 1; // Горизонтальная сторона
+        }
+
+        // Проверка, не вышли ли за пределы карты
+        if (mapX < 0 || mapX >= map.getWidth() || mapY < 0 || mapY >= map.getHeight())
+        {
+            hit = true;
+            ray.hitWall = true;
+            ray.distance = MAX_VIEW_DISTANCE;
+            break;
+        }
+
+        // Проверка, является ли клетка стеной
+        if (map.getTitle(mapX, mapY) == '#')
+        {
+            hit = true;
+            ray.hitWall = true;
+
+            // Вычисляем перпендикулярное расстояние до стены
+            if (side == 0)
+            {
+                ray.distance = (mapX - posX + (1 - stepX) / 2) / rayDirX;
+            }
+            else
+            {
+                ray.distance = (mapY - posY + (1 - stepY) / 2) / rayDirY;
+            }
+
+            // Убедимся, что расстояние положительное
+            if (ray.distance < 0)
+            {
+                ray.distance = 0.1f;
+            }
+
+            ray.mapX = mapX;
+            ray.mapY = mapY;
+            ray.side = side;
+            ray.hitX = posX + rayDirX * ray.distance;
+            ray.hitY = posY + rayDirY * ray.distance;
+        }
     }
 
     return ray;

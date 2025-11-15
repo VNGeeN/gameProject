@@ -49,5 +49,4 @@ void GameObject::setStateSprite(State state, const sf::Texture &texture)
 {
     stateSprites[state].setTexture(texture);
 
-    // настройки origin, scale
 }

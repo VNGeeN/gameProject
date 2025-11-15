@@ -24,11 +24,12 @@ private:
     Map &map;
     Player &player;
 
+    static constexpr float MAX_VIEW_DISTANCE = 20.0f;
+
     float calculateWallHeight(float distance);
     float calculateObjectScale(float distance);
     float calculateBrightness(float distance);
     sf::Vector2f calculateScreenPosition(sf::Vector2f worldPos, float distance);
-    // sf::Color getWallColor(float hitX, float hitY);
     sf::Color getWallColor(const RayCalc::Ray& ray);
     float getDistanceToPlayer(GameObject *obj);
     void renderObject(GameObject* obj, const ObjectVisibilityData& data);

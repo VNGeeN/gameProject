@@ -18,16 +18,6 @@ Map::Map()
         {'#', '.', '.', '.', '.', '.', '.', '.', '.', '#'},
         {'#', '#', '#', '#', '#', '#', '#', '#', '#', '#'}};
 
-    std::cout << "Map initialized: " << mWidth << "x" << mHeight << std::endl;
-
-    // Выведем карту для отладки
-    std::cout << "Map layout:" << std::endl;
-    for (int y = 0; y < mHeight; y++) {
-        for (int x = 0; x < mWidth; x++) {
-            std::cout << mGrid[y][x];
-        }
-        std::cout << std::endl;
-    }
 }
 
 int Map::getWidth() const
@@ -63,7 +53,7 @@ bool Map::isWall(float x, float y) const
 
 GameObject *Map::getObjectAt(float x, float y)
 {
-    // Простая реализация - проверяем все объекты
+    // проверяем все объекты
     for (auto &obj : mObjects)
     {
         sf::Vector2f pos = obj->getPosition();

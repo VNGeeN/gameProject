@@ -11,82 +11,60 @@ void Pseudo3DRenderer::render()
     window.clear(sf::Color::Black);
     renderWalls();
     // renderObjects();
-    // renderHUD();
 }
-
-// void Pseudo3DRenderer::renderWalls()
-// {
-//     const auto &rays = rayCalc.getRays();
-
-//     // std::cout << "Rendering " << rays.size() << " wall slices" << std::endl;
-
-//     for (int i = 0; i < rays.size(); i++)
-//     {
-//         if (rays[i].hitWall)
-//         {
-//             renderWallSlice(i, rays[i]);
-//         }
-//     }
-// }
 
 void Pseudo3DRenderer::renderWalls()
 {
+
     const auto &rays = rayCalc.getRays();
     
     int renderedWalls = 0;
+    int verticalWalls = 0;
+    int horizontalWalls = 0;
+    
     for (int i = 0; i < rays.size(); i++)
     {
-        if (rays[i].hitWall && rays[i].distance < 20.0f)
+        if (rays[i].hitWall && rays[i].distance < MAX_VIEW_DISTANCE)
         {
             renderWallSlice(i, rays[i]);
             renderedWalls++;
+            
+            if (rays[i].side == 0) {
+                verticalWalls++;
+            } else {
+                horizontalWalls++;
+            }
         }
     }
-    
-    std::cout << "Rendered " << renderedWalls << " wall slices" << std::endl;
 }
-
-// void Pseudo3DRenderer::renderWallSlice(int column, const RayCalc::Ray &ray)
-// {
-//     float wallHeight = calculateWallHeight(ray.distance);
-//     float brightness = calculateBrightness(ray.distance);
-
-//     std::cout << "Wall slice at column " << column << ", height " << wallHeight << ", distance " << ray.distance << std::endl;
-
-//     sf::RectangleShape wallSlice(sf::Vector2f(1, wallHeight));
-//     wallSlice.setPosition(column, (window.getSize().y - wallHeight) / 2);
-
-//     // sf::Color wallColor = getWallColor(ray.hitX, ray.hitY);
-//     sf::Color wallColor = getWallColor(ray);
-//     wallColor.r *= brightness;
-//     wallColor.g *= brightness;
-//     wallColor.b *= brightness;
-//     wallSlice.setFillColor(wallColor);
-
-//     window.draw(wallSlice);
-// }
 
 void Pseudo3DRenderer::renderWallSlice(int column, const RayCalc::Ray &ray)
 {
     float wallHeight = calculateWallHeight(ray.distance);
     float brightness = calculateBrightness(ray.distance);
 
-    // Убедимся, что высота стены разумная
-    if (wallHeight > 1000) wallHeight = 1000;
+    if (wallHeight > window.getSize().y) {
+        wallHeight = window.getSize().y;
+    }
     
     sf::RectangleShape wallSlice(sf::Vector2f(1, wallHeight));
     float yPos = (window.getSize().y - wallHeight) / 2;
     wallSlice.setPosition(column, yPos);
 
     sf::Color wallColor = getWallColor(ray);
-    wallColor.r *= brightness;
-    wallColor.g *= brightness;
-    wallColor.b *= brightness;
+
+    //  // Применяем затемнение для расстояния
+    wallColor.r = static_cast<sf::Uint8>(wallColor.r * brightness);
+    wallColor.g = static_cast<sf::Uint8>(wallColor.g * brightness);
+    wallColor.b = static_cast<sf::Uint8>(wallColor.b * brightness);
+
+    // wallColor.r *= brightness;
+    // wallColor.g *= brightness;
+    // wallColor.b *= brightness;
+
     wallSlice.setFillColor(wallColor);
 
     window.draw(wallSlice);
-    
-    std::cout << "Wall slice at column " << column << ", height " << wallHeight << ", distance " << ray.distance << std::endl;
 }
 
 void Pseudo3DRenderer::renderObjects()
@@ -132,17 +110,12 @@ void Pseudo3DRenderer::renderObject(GameObject *obj, const ObjectVisibilityData 
     // window.draw(renderSprite);
 }
 
-// float Pseudo3DRenderer::calculateWallHeight(float distance)
-// {
-//     // Простая перспектива: чем дальше, тем меньше стена
-//     return window.getSize().y / (distance + 0.1f);
-// }
-
 float Pseudo3DRenderer::calculateWallHeight(float distance)
 {
     if (distance <= 0) return 0;
     float height = window.getSize().y / distance;
-    return std::min(height, float(window.getSize().y));
+    return height;
+    //return std::min(height, float(window.getSize().y));
 }
 
 float Pseudo3DRenderer::calculateObjectScale(float distance)
@@ -152,32 +125,23 @@ float Pseudo3DRenderer::calculateObjectScale(float distance)
 
 float Pseudo3DRenderer::calculateBrightness(float distance)
 {
-    return 1.0f / (1.0f + distance * 0.3f);
+    return 1.0f / (1.0f + distance * 0.4f);
 }
 
 sf::Vector2f Pseudo3DRenderer::calculateScreenPosition(sf::Vector2f worldPos, float distance)
 {
     // Конвертация мировых координат в экранные с учетом перспективы
-    // Это упрощенная версия - в реальности нужны тригонометрические расчеты
     float screenX = (worldPos.x - player.getX()) * 100 / distance + window.getSize().x / 2;
     float screenY = (worldPos.y - player.getY()) * 100 / distance + window.getSize().y / 2;
     return sf::Vector2f(screenX, screenY);
 }
 
-// sf::Color Pseudo3DRenderer::getWallColor(float hitX, float hitY)
-// {
-//     // Простая реализация - возвращаем фиксированный цвет
-//     // В проекте можно выбирать цвет на основе типа стены или текстуры
-//     return sf::Color(150, 150, 150); // Серый цвет
-// }
-
 sf::Color Pseudo3DRenderer::getWallColor(const RayCalc::Ray& ray)
 {
-    // Разные цвета для отладки
     if (ray.side == 0) {
-        return sf::Color(255, 0, 0); // Красный
+        return sf::Color(180, 80, 80);  // Тёмно-красный для вертикальных стен
     } else {
-        return sf::Color(0, 0, 255); // Синий
+        return sf::Color(80, 80, 180);  // Тёмно-синий для горизонтальных стен
     }
 }
 

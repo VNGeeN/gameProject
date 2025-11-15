@@ -78,7 +78,6 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle)
         sideDistY = (mapY + 1.0 - posY) * deltaDistY;
     }
 
-    // DDA алгоритм
     bool hit = false;
     int steps = 0;
     const int MAX_STEPS = 100; // Защита от бесконечного цикла

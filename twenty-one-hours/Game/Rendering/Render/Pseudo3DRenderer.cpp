@@ -155,10 +155,10 @@ void Pseudo3DRenderer::renderWallSlice(int column, const RayCalc::Ray &ray)
         float uScale = region.width / 3.0f;
         float vScale = region.height / 3.0f;
 
-        wallQuad[0].texCoords = sf::Vector2f(region.left + uOffset, region.top + vOffset);
-        wallQuad[1].texCoords = sf::Vector2f(region.left + uOffset + uScale, region.top + vOffset);
-        wallQuad[2].texCoords = sf::Vector2f(region.left + uOffset + uScale, region.top + vOffset + vScale);
-        wallQuad[3].texCoords = sf::Vector2f(region.left + uOffset, region.top + vOffset + vScale);
+        wallQuad[0].texCoords = sf::Vector2f((region.left + uOffset), (region.top + vOffset) );
+        wallQuad[1].texCoords = sf::Vector2f((region.left + uOffset + uScale), (region.top + vOffset));
+        wallQuad[2].texCoords = sf::Vector2f((region.left + uOffset + uScale), (region.top + vOffset + vScale));
+        wallQuad[3].texCoords = sf::Vector2f((region.left + uOffset), (region.top + vOffset + vScale));
 
         sf::Color dimmed(255, 255, 255, 255);
         dimmed.r = static_cast<sf::Uint8>(255 * brightness);

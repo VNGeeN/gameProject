@@ -20,6 +20,7 @@ private:
     void update(sf::Time deltaTime);
     void render();
     void handleInput(sf::Time deltaTime);
+    void handleLevelTransitions(sf::Time deltaTime);
 
     sf::RenderWindow mWindow;
     
@@ -43,4 +44,6 @@ private:
     std::unique_ptr<EnemyManager> mEnemyManager;
 
     sf::Texture mEnemyTexture;
+
+    float mTransitionCooldown = 0.0f;
 };

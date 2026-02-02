@@ -6,9 +6,7 @@
 
 Map::Map() : mCollisionLayer(10, 10)
 {
-    initializeBaseGrid();
-    initializeCollisionLayer();
-    initializeSurfaces();
+    regenerate(LevelType::Dungeon);
     // mChunkManager = std::make_unique<ChunkManager>(*this);
 }
 
@@ -55,227 +53,16 @@ Map::Map() : mCollisionLayer(10, 10)
 
 void Map::initializeBaseGrid()
 {
-    mWidth = 50;
-    mHeight = 50;
-    mBaseGrid.resize(mHeight, std::vector<char>(mWidth, '#'));
+    mTransitions.clear();
 
-    // Используем генератор случайных чисел
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distrib(0, 100);
-
-    std::cout << "[Map] Generating more interesting map..." << std::endl;
-
-    // Создаем 5-8 комнат случайного размера
-    int numRooms = 5 + (distrib(gen) % 4); // От 5 до 8 комнат
-    std::vector<sf::IntRect> rooms;
-
-    for (int i = 0; i < numRooms; i++)
+    if (mLevelType == LevelType::OpenWorld)
     {
-        int attempts = 0;
-        bool placed = false;
-
-        // Пытаемся разместить комнату
-        while (!placed && attempts < 100)
-        {
-            int roomWidth = 5 + (distrib(gen) % 5);  // 4-9
-            int roomHeight = 5 + (distrib(gen) % 5); // 4-9
-            int roomX = 1 + (distrib(gen) % (mWidth - roomWidth - 2));
-            int roomY = 1 + (distrib(gen) % (mHeight - roomHeight - 2));
-
-            sf::IntRect newRoom(roomX, roomY, roomWidth, roomHeight);
-
-            // Проверяем пересечение с существующими комнатами
-            bool intersects = false;
-            for (const auto &room : rooms)
-            {
-                // Добавляем зазор в 1 клетку между комнатами
-                sf::IntRect expandedRoom(
-                    room.left - 1,
-                    room.top - 1,
-                    room.width + 2,
-                    room.height + 2);
-
-                if (expandedRoom.intersects(newRoom))
-                {
-                    intersects = true;
-                    break;
-                }
-            }
-
-            if (!intersects)
-            {
-                createRoom(roomX, roomY, roomWidth, roomHeight);
-                rooms.push_back(newRoom);
-                placed = true;
-                std::cout << "[Map] Created room " << i << " at ("
-                          << roomX << "," << roomY << ") size "
-                          << roomWidth << "x" << roomHeight << std::endl;
-            }
-
-            attempts++;
-        }
+        generateOpenWorldBaseGrid();
     }
-
-    // Соединяем комнаты лабиринтом
-    if (rooms.size() > 1)
+    else
     {
-        std::vector<bool> connected(rooms.size(), false);
-        connected[0] = true;
-
-        // Алгоритм Прима для соединения комнат
-        while (std::any_of(connected.begin(), connected.end(), [](bool c)
-                           { return !c; }))
-        {
-            int bestFrom = -1;
-            int bestTo = -1;
-            int bestDistance = INT_MAX;
-
-            // Ищем ближайшую неподключенную комнату к подключенным
-            for (size_t i = 0; i < rooms.size(); i++)
-            {
-                if (!connected[i])
-                    continue;
-
-                for (size_t j = 0; j < rooms.size(); j++)
-                {
-                    if (connected[j] || i == j)
-                        continue;
-
-                    // Расстояние между центрами комнат
-                    int distX = (rooms[i].left + rooms[i].width / 2) - (rooms[j].left + rooms[j].width / 2);
-                    int distY = (rooms[i].top + rooms[i].height / 2) - (rooms[j].top + rooms[j].height / 2);
-                    int distance = abs(distX) + abs(distY);
-
-                    if (distance < bestDistance)
-                    {
-                        bestDistance = distance;
-                        bestFrom = i;
-                        bestTo = j;
-                    }
-                }
-            }
-
-            if (bestFrom != -1 && bestTo != -1)
-            {
-                // Соединяем комнаты коридорами
-                int fromCenterX = rooms[bestFrom].left + rooms[bestFrom].width / 2;
-                int fromCenterY = rooms[bestFrom].top + rooms[bestFrom].height / 2;
-                int toCenterX = rooms[bestTo].left + rooms[bestTo].width / 2;
-                int toCenterY = rooms[bestTo].top + rooms[bestTo].height / 2;
-
-                // Создаем L-образный коридор
-                if (distrib(gen) % 2 == 0)
-                {
-                    // Сначала горизонтально, затем вертикально
-                    createHorizontalCorridor(fromCenterX, toCenterX, fromCenterY);
-                    createVerticalCorridor(toCenterX, fromCenterY, toCenterY);
-                }
-                else
-                {
-                    // Сначала вертикально, затем горизонтально
-                    createVerticalCorridor(fromCenterX, fromCenterY, toCenterY);
-                    createHorizontalCorridor(fromCenterX, toCenterX, toCenterY);
-                }
-
-                connected[bestTo] = true;
-                std::cout << "[Map] Connected room " << bestFrom << " to room " << bestTo << std::endl;
-            }
-        }
+        generateDungeonBaseGrid();
     }
-
-    // Добавляем случайные коридоры для усложнения
-    for (int i = 0; i < 5; i++)
-    {
-        int x = 2 + (distrib(gen) % (mWidth - 4));
-        int y = 2 + (distrib(gen) % (mHeight - 4));
-        int length = 5 + (distrib(gen) % 10);
-
-        if (distrib(gen) % 2 == 0)
-        {
-            // Горизонтальный коридор
-            createHorizontalCorridor(x, x + length, y);
-        }
-        else
-        {
-            // Вертикальный коридор
-            createVerticalCorridor(x, y, y + length);
-        }
-    }
-
-    // Очищаем углы от изолированных стен (опционально)
-    for (int y = 1; y < mHeight - 1; y++)
-    {
-        for (int x = 1; x < mWidth - 1; x++)
-        {
-            // Если у стены все соседи - тоже стены, делаем ее полом
-            if (mBaseGrid[y][x] == '#')
-            {
-                int wallNeighbors = 0;
-                for (int dy = -1; dy <= 1; dy++)
-                {
-                    for (int dx = -1; dx <= 1; dx++)
-                    {
-                        if (dx == 0 && dy == 0)
-                            continue;
-                        if (mBaseGrid[y + dy][x + dx] == '#')
-                            wallNeighbors++;
-                    }
-                }
-
-                // Если все 8 соседей - стены, делаем пол
-                if (wallNeighbors == 8)
-                {
-                    mBaseGrid[y][x] = '.';
-                }
-            }
-        }
-    }
-
-    // Удаляем изолированные 1x1 проходы
-    for (int y = 1; y < mHeight - 1; y++)
-    {
-        for (int x = 1; x < mWidth - 1; x++)
-        {
-            if (mBaseGrid[y][x] == '.')
-            {
-                // Считаем количество соседей-стен
-                int wallCount = 0;
-                for (int dy = -1; dy <= 1; dy++)
-                {
-                    for (int dx = -1; dx <= 1; dx++)
-                    {
-                        if (dx == 0 && dy == 0)
-                            continue;
-                        if (mBaseGrid[y + dy][x + dx] == '#')
-                            wallCount++;
-                    }
-                }
-
-                // Если все 8 соседей — стены, это изолированная клетка
-                if (wallCount == 8)
-                {
-                    mBaseGrid[y][x] = '#'; // ← превращаем в стену
-                    std::cout << "[Map] Removed isolated 1x1 at (" << x << "," << y << ")" << std::endl;
-                }
-            }
-        }
-    }
-
-    // Статистика
-    int walls = 0, floors = 0;
-    for (int y = 0; y < mHeight; y++)
-    {
-        for (int x = 0; x < mWidth; x++)
-        {
-            if (mBaseGrid[y][x] == '#')
-                walls++;
-            else
-                floors++;
-        }
-    }
-
-    std::cout << "[Map] Generated map: " << walls << " walls, " << floors << " floors" << std::endl;
 }
 
 // void Map::createRoom(int x, int y, int w, int h)
@@ -337,7 +124,7 @@ void Map::createRoom(int x, int y, int w, int h)
     }
 }
 
-void Map::createHorizontalCorridor(int x1, int x2, int y)
+void Map::createHorizontalCorridor(int x1, int x2, int y, int width)
 {
     std::cout << "[Map] Creating horizontal corridor from x=" << x1 << " to x=" << x2 << " at y=" << y << std::endl;
 
@@ -346,15 +133,19 @@ void Map::createHorizontalCorridor(int x1, int x2, int y)
 
     for (int x = startX; x <= endX; x++)
     {
-        if (x >= 0 && x < static_cast<int>(mBaseGrid[0].size()) &&
-            y >= 0 && y < static_cast<int>(mBaseGrid.size()))
+        for (int offset = 0; offset < width; offset++)
         {
-            mBaseGrid[y][x] = '.';
+            int corridorY = y + offset;
+            if (x >= 0 && x < static_cast<int>(mBaseGrid[0].size()) &&
+                corridorY >= 0 && corridorY < static_cast<int>(mBaseGrid.size()))
+            {
+                mBaseGrid[corridorY][x] = '.';
+            }
         }
     }
 }
 
-void Map::createVerticalCorridor(int x, int y1, int y2)
+void Map::createVerticalCorridor(int x, int y1, int y2, int width)
 {
     std::cout << "[Map] Creating vertical corridor at x=" << x << " from y=" << y1 << " to y=" << y2 << std::endl;
 
@@ -363,10 +154,14 @@ void Map::createVerticalCorridor(int x, int y1, int y2)
 
     for (int y = startY; y <= endY; y++)
     {
-        if (x >= 0 && x < static_cast<int>(mBaseGrid[0].size()) &&
-            y >= 0 && y < static_cast<int>(mBaseGrid.size()))
+        for (int offset = 0; offset < width; offset++)
         {
-            mBaseGrid[y][x] = '.';
+            int corridorX = x + offset;
+            if (corridorX >= 0 && corridorX < static_cast<int>(mBaseGrid[0].size()) &&
+                y >= 0 && y < static_cast<int>(mBaseGrid.size()))
+            {
+                mBaseGrid[y][corridorX] = '.';
+            }
         }
     }
 }
@@ -743,37 +538,349 @@ void Map::initializeSurfaces()
 
 sf::Vector2f Map::findPlayerStartPosition() const
 {
-    // Ищем центр первой комнаты
+    return mPlayerStart;
+}
+
+bool Map::tryGetTransitionTarget(float x, float y, LevelType &outTarget) const
+{
+    int tileX = static_cast<int>(x);
+    int tileY = static_cast<int>(y);
+    for (const auto &transition : mTransitions)
+    {
+        if (transition.tile.x == tileX && transition.tile.y == tileY)
+        {
+            outTarget = transition.target;
+            return true;
+        }
+    }
+    return false;
+}
+
+void Map::regenerate(LevelType levelType)
+{
+    mLevelType = levelType;
+    mChunkManager.reset();
+    initializeBaseGrid();
+    initializeCollisionLayer();
+    initializeSurfaces();
+}
+
+void Map::generateDungeonBaseGrid()
+{
+    mWidth = 60;
+    mHeight = 60;
+    mBaseGrid.assign(mHeight, std::vector<char>(mWidth, '#'));
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distrib(0, 100);
+
+    std::cout << "[Map] Generating dungeon level..." << std::endl;
+
+    int numRooms = 10 + (distrib(gen) % 6); // От 10 до 15 комнат
+    std::vector<sf::IntRect> rooms;
+    rooms.reserve(numRooms);
+
+    for (int i = 0; i < numRooms; i++)
+    {
+        int attempts = 0;
+        bool placed = false;
+
+        while (!placed && attempts < 120)
+        {
+            int roomWidth = 6 + (distrib(gen) % 7);  // 6-12
+            int roomHeight = 6 + (distrib(gen) % 7); // 6-12
+            int roomX = 1 + (distrib(gen) % (mWidth - roomWidth - 2));
+            int roomY = 1 + (distrib(gen) % (mHeight - roomHeight - 2));
+
+            sf::IntRect newRoom(roomX, roomY, roomWidth, roomHeight);
+
+            bool intersects = false;
+            for (const auto &room : rooms)
+            {
+                sf::IntRect expandedRoom(
+                    room.left - 1,
+                    room.top - 1,
+                    room.width + 2,
+                    room.height + 2);
+
+                if (expandedRoom.intersects(newRoom))
+                {
+                    intersects = true;
+                    break;
+                }
+            }
+
+            if (!intersects)
+            {
+                createRoom(roomX, roomY, roomWidth, roomHeight);
+                rooms.push_back(newRoom);
+                placed = true;
+                std::cout << "[Map] Created room " << i << " at ("
+                          << roomX << "," << roomY << ") size "
+                          << roomWidth << "x" << roomHeight << std::endl;
+            }
+
+            attempts++;
+        }
+    }
+
+    if (!rooms.empty())
+    {
+        auto &startRoom = rooms.front();
+        mPlayerStart = sf::Vector2f(
+            startRoom.left + startRoom.width / 2.0f,
+            startRoom.top + startRoom.height / 2.0f);
+    }
+    else
+    {
+        mPlayerStart = sf::Vector2f(mWidth / 2.0f, mHeight / 2.0f);
+    }
+
+    if (rooms.size() > 1)
+    {
+        std::vector<bool> connected(rooms.size(), false);
+        connected[0] = true;
+
+        while (std::any_of(connected.begin(), connected.end(), [](bool c)
+                           { return !c; }))
+        {
+            int bestFrom = -1;
+            int bestTo = -1;
+            int bestDistance = INT_MAX;
+
+            for (size_t i = 0; i < rooms.size(); i++)
+            {
+                if (!connected[i])
+                    continue;
+
+                for (size_t j = 0; j < rooms.size(); j++)
+                {
+                    if (connected[j] || i == j)
+                        continue;
+
+                    int distX = (rooms[i].left + rooms[i].width / 2) - (rooms[j].left + rooms[j].width / 2);
+                    int distY = (rooms[i].top + rooms[i].height / 2) - (rooms[j].top + rooms[j].height / 2);
+                    int distance = abs(distX) + abs(distY);
+
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        bestFrom = static_cast<int>(i);
+                        bestTo = static_cast<int>(j);
+                    }
+                }
+            }
+
+            if (bestFrom != -1 && bestTo != -1)
+            {
+                int fromCenterX = rooms[bestFrom].left + rooms[bestFrom].width / 2;
+                int fromCenterY = rooms[bestFrom].top + rooms[bestFrom].height / 2;
+                int toCenterX = rooms[bestTo].left + rooms[bestTo].width / 2;
+                int toCenterY = rooms[bestTo].top + rooms[bestTo].height / 2;
+
+                if (distrib(gen) % 2 == 0)
+                {
+                    createHorizontalCorridor(fromCenterX, toCenterX, fromCenterY, 3);
+                    createVerticalCorridor(toCenterX, fromCenterY, toCenterY, 3);
+                }
+                else
+                {
+                    createVerticalCorridor(fromCenterX, fromCenterY, toCenterY, 3);
+                    createHorizontalCorridor(fromCenterX, toCenterX, toCenterY, 3);
+                }
+
+                connected[bestTo] = true;
+                std::cout << "[Map] Connected room " << bestFrom << " to room " << bestTo << std::endl;
+            }
+        }
+    }
+
+    for (int i = 0; i < 8; i++)
+    {
+        int x = 2 + (distrib(gen) % (mWidth - 6));
+        int y = 2 + (distrib(gen) % (mHeight - 6));
+        int length = 6 + (distrib(gen) % 14);
+
+        if (distrib(gen) % 2 == 0)
+        {
+            createHorizontalCorridor(x, x + length, y, 2);
+        }
+        else
+        {
+            createVerticalCorridor(x, y, y + length, 2);
+        }
+    }
+
+    if (!rooms.empty())
+    {
+        int bestRoomIndex = 0;
+        int bestDistance = -1;
+        for (size_t i = 0; i < rooms.size(); i++)
+        {
+            int centerX = rooms[i].left + rooms[i].width / 2;
+            int centerY = rooms[i].top + rooms[i].height / 2;
+            int distance = abs(centerX - static_cast<int>(mPlayerStart.x)) +
+                           abs(centerY - static_cast<int>(mPlayerStart.y));
+            if (distance > bestDistance)
+            {
+                bestDistance = distance;
+                bestRoomIndex = static_cast<int>(i);
+            }
+        }
+
+        int portalX = rooms[bestRoomIndex].left + rooms[bestRoomIndex].width / 2;
+        int portalY = rooms[bestRoomIndex].top + rooms[bestRoomIndex].height / 2;
+        carveFloorRect(portalX - 1, portalY - 1, 3, 3);
+        addTransition(portalX, portalY, LevelType::OpenWorld);
+    }
+
+    for (int y = 1; y < mHeight - 1; y++)
+    {
+        for (int x = 1; x < mWidth - 1; x++)
+        {
+            if (mBaseGrid[y][x] == '#')
+            {
+                int wallNeighbors = 0;
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        if (dx == 0 && dy == 0)
+                            continue;
+                        if (mBaseGrid[y + dy][x + dx] == '#')
+                            wallNeighbors++;
+                    }
+                }
+
+                if (wallNeighbors == 8)
+                {
+                    mBaseGrid[y][x] = '.';
+                }
+            }
+        }
+    }
+
     for (int y = 1; y < mHeight - 1; y++)
     {
         for (int x = 1; x < mWidth - 1; x++)
         {
             if (mBaseGrid[y][x] == '.')
             {
-                // Проверяем, достаточно ли места вокруг
-                bool valid = true;
+                int wallCount = 0;
                 for (int dy = -1; dy <= 1; dy++)
                 {
                     for (int dx = -1; dx <= 1; dx++)
                     {
+                        if (dx == 0 && dy == 0)
+                            continue;
+
                         if (mBaseGrid[y + dy][x + dx] == '#')
-                        {
-                            valid = false;
-                            break;
-                        }
+                            wallCount++;
                     }
-                    if (!valid)
-                        break;
                 }
 
-                if (valid)
+                if (wallCount == 8)
                 {
-                    return sf::Vector2f(x + 0.5f, y + 0.5f);
+                    mBaseGrid[y][x] = '#';
+                    std::cout << "[Map] Removed isolated 1x1 at (" << x << "," << y << ")" << std::endl;
                 }
             }
         }
     }
 
-    // Если не нашли хорошее место, возвращаем центр карты
-    return sf::Vector2f(mWidth / 2.0f, mHeight / 2.0f);
+    int walls = 0, floors = 0;
+    for (int y = 0; y < mHeight; y++)
+    {
+        for (int x = 0; x < mWidth; x++)
+        {
+            if (mBaseGrid[y][x] == '#')
+                walls++;
+            else
+                floors++;
+        }
+    }
+
+    std::cout << "[Map] Dungeon generated: " << walls << " walls, " << floors << " floors" << std::endl;
+}
+
+void Map::generateOpenWorldBaseGrid()
+{
+    mWidth = 90;
+    mHeight = 90;
+    mBaseGrid.assign(mHeight, std::vector<char>(mWidth, '.'));
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distrib(0, 100);
+
+    for (int x = 0; x < mWidth; x++)
+    {
+        mBaseGrid[0][x] = '#';
+        mBaseGrid[mHeight - 1][x] = '#';
+    }
+    for (int y = 0; y < mHeight; y++)
+    {
+        mBaseGrid[y][0] = '#';
+        mBaseGrid[y][mWidth - 1] = '#';
+    }
+
+    int obstacleCount = 20;
+    for (int i = 0; i < obstacleCount; i++)
+    {
+        int blockWidth = 3 + (distrib(gen) % 6);
+        int blockHeight = 3 + (distrib(gen) % 6);
+        int blockX = 2 + (distrib(gen) % (mWidth - blockWidth - 3));
+        int blockY = 2 + (distrib(gen) % (mHeight - blockHeight - 3));
+
+        for (int dy = 0; dy < blockHeight; dy++)
+        {
+            for (int dx = 0; dx < blockWidth; dx++)
+            {
+                mBaseGrid[blockY + dy][blockX + dx] = '#';
+            }
+        }
+    }
+
+    int centerX = mWidth / 2;
+    int centerY = mHeight / 2;
+    carveFloorRect(centerX - 4, centerY - 4, 9, 9);
+    mPlayerStart = sf::Vector2f(centerX + 0.5f, centerY + 0.5f);
+
+    std::vector<sf::Vector2i> portalPoints = {
+        {10, 10},
+        {mWidth - 11, 10},
+        {10, mHeight - 11},
+        {mWidth - 11, mHeight - 11}};
+
+    for (const auto &point : portalPoints)
+    {
+        carveFloorRect(point.x - 2, point.y - 2, 5, 5);
+        addTransition(point.x, point.y, LevelType::Dungeon);
+    }
+
+    std::cout << "[Map] Open world generated: " << mWidth << "x" << mHeight << std::endl;
+}
+
+void Map::addTransition(int x, int y, LevelType target)
+{
+    mTransitions.push_back({sf::Vector2i(x, y), target});
+    std::cout << "[Map] Transition at (" << x << "," << y << ") -> "
+              << (target == LevelType::OpenWorld ? "OpenWorld" : "Dungeon") << std::endl;
+}
+
+void Map::carveFloorRect(int x, int y, int w, int h)
+{
+    for (int dy = 0; dy < h; dy++)
+    {
+        for (int dx = 0; dx < w; dx++)
+        {
+            int px = x + dx;
+            int py = y + dy;
+            if (px >= 1 && px < mWidth - 1 && py >= 1 && py < mHeight - 1)
+            {
+                mBaseGrid[py][px] = '.';
+            }
+        }
+    }
 }

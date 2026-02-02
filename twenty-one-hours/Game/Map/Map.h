@@ -10,11 +10,18 @@
 class Map
 {
 public:
+    enum class LevelType
+    {
+        Dungeon,
+        OpenWorld
+    };
+
     Map();
 
     int getWidth() const { return mWidth; }
     int getHeight() const { return mHeight; }
     char getTile(int x, int y) const;
+    LevelType getLevelType() const { return mLevelType; }
 
     Surface *getWallAt(float x, float y) const;
     Surface *getFloorAt(float x, float y) const;
@@ -49,6 +56,18 @@ public:
 
     sf::Vector2f findPlayerStartPosition() const;
 
+    bool tryGetTransitionTarget(float x, float y, LevelType &outTarget) const;
+
+    struct Transition
+    {
+        sf::Vector2i tile;
+        LevelType target;
+    };
+
+    const std::vector<Transition> &getTransitions() const { return mTransitions; }
+
+    void regenerate(LevelType levelType);
+
 private:
     struct Cell
     {
@@ -76,6 +95,10 @@ private:
     void initializeCells();
     void initializeCollisionLayer();
     void initializeSurfaces();
+    void generateDungeonBaseGrid();
+    void generateOpenWorldBaseGrid();
+    void addTransition(int x, int y, LevelType target);
+    void carveFloorRect(int x, int y, int w, int h);
 
     bool inBounds(int x, int y) const
     {
@@ -84,13 +107,16 @@ private:
 
     int mWidth = 10;
     int mHeight = 10;
+    LevelType mLevelType = LevelType::Dungeon;
+    sf::Vector2f mPlayerStart{0.0f, 0.0f};
     std::vector<std::vector<char>> mBaseGrid;
     std::vector<std::vector<Cell>> mCells;
     CollisionLayer mCollisionLayer;
 
     std::unique_ptr<ChunkManager> mChunkManager;
+    std::vector<Transition> mTransitions;
 
     void createRoom(int x, int y, int w, int h);
-    void createHorizontalCorridor(int x1, int x2, int y);
-    void createVerticalCorridor(int x, int y1, int y2);
+    void createHorizontalCorridor(int x1, int x2, int y, int width = 2);
+    void createVerticalCorridor(int x, int y1, int y2, int width = 2);
 };

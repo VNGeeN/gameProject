@@ -1,5 +1,6 @@
 #include "Game.h"
 #include <SFML/Window/Keyboard.hpp>
+#include <algorithm>
 #include <iostream>
 
 Game::Game()
@@ -183,6 +184,8 @@ void Game::update(sf::Time deltaTime)
         mEnemyManager->update(deltaTime, *mPlayer);
     }
 
+    handleLevelTransitions(deltaTime);
+
     mRayCalc->calcRays(mWindow.getSize().x);
 }
 
@@ -218,6 +221,21 @@ void Game::render2D()
     // Отрисовка в правильном порядке
     mMap->drawFloors(mWindow);
     mMap->drawWalls(mWindow);
+
+    for (const auto &transition : mMap->getTransitions())
+    {
+        sf::RectangleShape marker(sf::Vector2f(0.8f, 0.8f));
+        marker.setPosition(transition.tile.x + 0.1f, transition.tile.y + 0.1f);
+        if (transition.target == Map::LevelType::OpenWorld)
+        {
+            marker.setFillColor(sf::Color(80, 200, 255));
+        }
+        else
+        {
+            marker.setFillColor(sf::Color(200, 120, 255));
+        }
+        mWindow.draw(marker);
+    }
 
     // Игрок (в мировых координатах)
     sf::CircleShape playerShape(0.2f); // Немного больше для видимости
@@ -291,4 +309,32 @@ void Game::toggleChunkDebugMode()
 {
     mChunkDebugMode = !mChunkDebugMode;
     std::cout << "Chunk debug mode: " << (mChunkDebugMode ? "ON" : "OFF") << std::endl;
+}
+
+void Game::handleLevelTransitions(sf::Time deltaTime)
+{
+    if (mTransitionCooldown > 0.0f)
+    {
+        mTransitionCooldown = std::max(0.0f, mTransitionCooldown - deltaTime.asSeconds());
+        return;
+    }
+
+    Map::LevelType target;
+    if (!mMap->tryGetTransitionTarget(mPlayer->getX(), mPlayer->getY(), target))
+    {
+        return;
+    }
+
+    std::cout << "[Game] Transitioning to "
+              << (target == Map::LevelType::OpenWorld ? "OpenWorld" : "Dungeon")
+              << std::endl;
+
+    mMap->regenerate(target);
+    sf::Vector2f startPos = mMap->findPlayerStartPosition();
+    mPlayer->setPosition(startPos.x, startPos.y);
+
+    mEnemyManager = std::make_unique<EnemyManager>(*mMap);
+    mEnemyManager->spawnEnemies(5);
+
+    mTransitionCooldown = 1.0f;
 }

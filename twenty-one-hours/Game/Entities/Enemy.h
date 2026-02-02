@@ -38,6 +38,16 @@ enum class FacingDirection
 class Enemy
 {
 public:
+    struct Stats
+    {
+        int maxHealth = 60;
+        int health = 60;
+        int maxArmor = 15;
+        int armor = 15;
+        int damage = 8;
+        float attackRange = 1.4f;
+    };
+
     Enemy(Map &map, float x, float y);
 
     bool isVisible(const sf::Vector2f &playerPos, const RayCalc &rayCalc) const;
@@ -48,13 +58,12 @@ public:
 
     bool isAlive() const { return mAlive; }
     void die() { mAlive = false; }
+    void takeDamage(int amount);
 
     sf::Vector2f getPosition() const { return mPosition; }
     void setPosition(const sf::Vector2f &position) { mPosition = position; }
     float getDetectionDistance() const { return mDetectionDistance; }
 
-    int mHealth = 100;
-    int mDamage = 10;
     sf::Time mAttackCooldown;
     sf::Time mAttackTimer;
 
@@ -62,6 +71,7 @@ public:
 
     void setAnimationState(AnimationState state);
     AnimationState getAnimationState() const { return mAnimationState; }
+    const Stats &getStats() const { return mStats; }
 
 private:
     float mVisibility = 1.0f;
@@ -71,6 +81,7 @@ private:
     Map &mMap;
     sf::Vector2f mPosition;
     bool mAlive = true;
+    Stats mStats;
 
     // Параметры ИИ
     float mRadius = 0.25f;

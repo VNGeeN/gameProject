@@ -21,6 +21,10 @@ private:
     void render();
     void handleInput(sf::Time deltaTime);
     void handleLevelTransitions(sf::Time deltaTime);
+    void renderHud();
+    void renderWeapon();
+    void renderCrosshair();
+    void renderHitMarker();
 
     sf::RenderWindow mWindow;
     
@@ -46,4 +50,7 @@ private:
     sf::Texture mEnemyTexture;
 
     float mTransitionCooldown = 0.0f;
+
+    float mWeaponKick = 0.0f;
+    float mHitMarkerTimer = 0.0f;
 };

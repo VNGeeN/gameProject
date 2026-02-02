@@ -1,6 +1,7 @@
 #include "Player.h"
 #include <cmath>
 #include <iostream>
+#include <algorithm>
 
 Player::Player(Map &map) : map(map)
 {
@@ -72,4 +73,41 @@ void Player::rotate(float angleOffset)
     {
         angle -= 2 * M_PI;
     }
+}
+
+void Player::takeDamage(int amount)
+{
+    if (amount <= 0 || !isAlive())
+    {
+        return;
+    }
+
+    int remaining = amount;
+    if (mStats.armor > 0)
+    {
+        int absorbed = std::min(mStats.armor, remaining);
+        mStats.armor -= absorbed;
+        remaining -= absorbed;
+    }
+
+    if (remaining > 0)
+    {
+        mStats.health = std::max(0, mStats.health - remaining);
+    }
+}
+
+bool Player::tryFire(sf::Time deltaTime)
+{
+    if (mWeaponCooldown > 0.0f)
+    {
+        return false;
+    }
+
+    mWeaponCooldown = mWeapon.fireRate;
+    return true;
+}
+
+void Player::updateWeaponCooldown(sf::Time deltaTime)
+{
+    mWeaponCooldown = std::max(0.0f, mWeaponCooldown - deltaTime.asSeconds());
 }

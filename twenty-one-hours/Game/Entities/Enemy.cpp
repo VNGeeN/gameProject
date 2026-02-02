@@ -140,6 +140,8 @@ void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float play
         mAnimationState = AnimationState::IDLE;
     }
 
+    updateState(deltaTime, playerPos);
+
     // Плавное изменение видимости
     // УБИРАЕМ ПОВТОРНОЕ ОБЪЯВЛЕНИЕ - используем уже вычисленные значения
     // В пределах поля зрения?
@@ -291,7 +293,7 @@ void Enemy::updateState(sf::Time deltaTime, const sf::Vector2f &playerPos)
         std::pow(playerPos.x - mPosition.x, 2) +
         std::pow(playerPos.y - mPosition.y, 2));
 
-    if (distance < 1.5f)
+    if (distance < mStats.attackRange)
     {
         mState = EnemyState::ATTACK;
         mAnimationState = AnimationState::ATTACK;
@@ -348,6 +350,9 @@ void Enemy::patrol(sf::Time deltaTime)
 
 void Enemy::attackPlayer(Player &player, sf::Time deltaTime)
 {
+    if (!mAlive)
+        return;
+
     mAttackTimer += deltaTime;
 
     if (mAttackTimer >= mAttackCooldown)
@@ -357,10 +362,10 @@ void Enemy::attackPlayer(Player &player, sf::Time deltaTime)
         float dy = player.getY() - mPosition.y;
         float distance = std::sqrt(dx * dx + dy * dy);
 
-        if (distance < 1.5f)
+        if (distance < mStats.attackRange)
         {
             // Наносим урон игроку
-            // player.takeDamage(mDamage);
+            player.takeDamage(mStats.damage);
             mAttackTimer = sf::Time::Zero;
         }
     }
@@ -450,4 +455,28 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
 void Enemy::setAnimationState(AnimationState state)
 {
     mAnimationState = state;
+}
+
+void Enemy::takeDamage(int amount)
+{
+    if (!mAlive || amount <= 0)
+        return;
+
+    int remaining = amount;
+    if (mStats.armor > 0)
+    {
+        int absorbed = std::min(mStats.armor, remaining);
+        mStats.armor -= absorbed;
+        remaining -= absorbed;
+    }
+
+    if (remaining > 0)
+    {
+        mStats.health = std::max(0, mStats.health - remaining);
+        if (mStats.health == 0)
+        {
+            mAlive = false;
+            mAnimationState = AnimationState::DEATH;
+        }
+    }
 }

@@ -184,6 +184,34 @@ void Game::update(sf::Time deltaTime)
         mEnemyManager->update(deltaTime, *mPlayer);
     }
 
+    mPlayer->updateWeaponCooldown(deltaTime);
+
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+    {
+        if (mPlayer->tryFire(deltaTime))
+        {
+            const auto &weapon = mPlayer->getWeaponStats();
+            Enemy *target = nullptr;
+            if (mEnemyManager)
+            {
+                target = mEnemyManager->findTargetInSight(*mPlayer, *mRayCalc,
+                                                          weapon.range, weapon.aimCone);
+            }
+
+            if (target)
+            {
+                int bonus = mPlayer->getStats().strength / 2;
+                target->takeDamage(weapon.damage + bonus);
+                mHitMarkerTimer = 0.15f;
+            }
+
+            mWeaponKick = 1.0f;
+        }
+    }
+
+    mWeaponKick = std::max(0.0f, mWeaponKick - deltaTime.asSeconds() * 5.0f);
+    mHitMarkerTimer = std::max(0.0f, mHitMarkerTimer - deltaTime.asSeconds());
+
     handleLevelTransitions(deltaTime);
 
     mRayCalc->calcRays(mWindow.getSize().x);
@@ -295,14 +323,200 @@ void Game::render()
     {
         mRenderer->render();
 
-         // Рисуем врагов в 3D режиме
+        // Рисуем врагов в 3D режиме
         if (mEnemyManager)
         {
             mEnemyManager->render3D(*mRenderer, *mPlayer, *mRayCalc);
         }
+
+        renderHud();
+        renderWeapon();
+        renderCrosshair();
+        renderHitMarker();
     }
 
     mWindow.display();
+}
+
+void Game::renderHud()
+{
+    const auto &stats = mPlayer->getStats();
+    const auto &weapon = mPlayer->getWeaponStats();
+    sf::Vector2u size = mWindow.getSize();
+
+    sf::Color panelColor(20, 18, 16, 210);
+    sf::Color trimColor(175, 130, 55);
+    sf::Color healthColor(170, 30, 30);
+    sf::Color armorColor(60, 110, 150);
+    sf::Color accentColor(120, 15, 15);
+
+    sf::Vector2f panelSize(280.0f, 96.0f);
+    sf::Vector2f panelPos(16.0f, size.y - panelSize.y - 16.0f);
+
+    sf::RectangleShape panel(panelSize);
+    panel.setPosition(panelPos);
+    panel.setFillColor(panelColor);
+    panel.setOutlineThickness(2.0f);
+    panel.setOutlineColor(trimColor);
+    mWindow.draw(panel);
+
+    sf::RectangleShape header(sf::Vector2f(panelSize.x, 6.0f));
+    header.setPosition(panelPos.x, panelPos.y);
+    header.setFillColor(accentColor);
+    mWindow.draw(header);
+
+    float innerPadding = 12.0f;
+    float barWidth = panelSize.x - innerPadding * 2.0f;
+    float barHeight = 16.0f;
+
+    sf::RectangleShape healthBack(sf::Vector2f(barWidth, barHeight));
+    healthBack.setPosition(panelPos.x + innerPadding, panelPos.y + 24.0f);
+    healthBack.setFillColor(sf::Color(40, 10, 10));
+    mWindow.draw(healthBack);
+
+    float healthRatio = static_cast<float>(stats.health) / static_cast<float>(stats.maxHealth);
+    sf::RectangleShape healthFill(sf::Vector2f(barWidth * healthRatio, barHeight));
+    healthFill.setPosition(healthBack.getPosition());
+    healthFill.setFillColor(healthColor);
+    mWindow.draw(healthFill);
+
+    sf::RectangleShape armorBack(sf::Vector2f(barWidth, barHeight));
+    armorBack.setPosition(panelPos.x + innerPadding, panelPos.y + 52.0f);
+    armorBack.setFillColor(sf::Color(15, 25, 35));
+    mWindow.draw(armorBack);
+
+    float armorRatio = static_cast<float>(stats.armor) / static_cast<float>(stats.maxArmor);
+    sf::RectangleShape armorFill(sf::Vector2f(barWidth * armorRatio, barHeight));
+    armorFill.setPosition(armorBack.getPosition());
+    armorFill.setFillColor(armorColor);
+    mWindow.draw(armorFill);
+
+    sf::ConvexShape seal(4);
+    seal.setPoint(0, sf::Vector2f(0.0f, 0.0f));
+    seal.setPoint(1, sf::Vector2f(14.0f, 6.0f));
+    seal.setPoint(2, sf::Vector2f(0.0f, 12.0f));
+    seal.setPoint(3, sf::Vector2f(-14.0f, 6.0f));
+    seal.setFillColor(trimColor);
+    seal.setPosition(panelPos.x + panelSize.x - 28.0f, panelPos.y + panelSize.y - 22.0f);
+    mWindow.draw(seal);
+
+    if (mEnemyManager)
+    {
+        Enemy *target = mEnemyManager->findTargetInSight(*mPlayer, *mRayCalc,
+                                                         weapon.range, weapon.aimCone);
+        if (target)
+        {
+            const auto &enemyStats = target->getStats();
+            sf::Vector2f targetPanelSize(220.0f, 32.0f);
+            sf::Vector2f targetPanelPos((size.x - targetPanelSize.x) * 0.5f, 24.0f);
+
+            sf::RectangleShape targetPanel(targetPanelSize);
+            targetPanel.setPosition(targetPanelPos);
+            targetPanel.setFillColor(sf::Color(15, 10, 10, 200));
+            targetPanel.setOutlineThickness(2.0f);
+            targetPanel.setOutlineColor(trimColor);
+            mWindow.draw(targetPanel);
+
+            float enemyRatio = static_cast<float>(enemyStats.health) /
+                               static_cast<float>(enemyStats.maxHealth);
+            sf::RectangleShape enemyBar(sf::Vector2f((targetPanelSize.x - 12.0f) * enemyRatio, 10.0f));
+            enemyBar.setPosition(targetPanelPos.x + 6.0f, targetPanelPos.y + 6.0f);
+            enemyBar.setFillColor(healthColor);
+            mWindow.draw(enemyBar);
+
+            float enemyArmorRatio = static_cast<float>(enemyStats.armor) /
+                                    static_cast<float>(enemyStats.maxArmor);
+            enemyArmorRatio = std::min(enemyArmorRatio, 1.0f);
+            sf::RectangleShape enemyArmor(sf::Vector2f((targetPanelSize.x - 12.0f) * enemyArmorRatio, 6.0f));
+            enemyArmor.setPosition(targetPanelPos.x + 6.0f, targetPanelPos.y + 18.0f);
+            enemyArmor.setFillColor(armorColor);
+            mWindow.draw(enemyArmor);
+        }
+    }
+}
+
+void Game::renderWeapon()
+{
+    sf::Vector2u size = mWindow.getSize();
+    float kick = mWeaponKick * 10.0f;
+
+    sf::Vector2f basePos(size.x * 0.62f, size.y * 0.82f - kick);
+
+    sf::RectangleShape body(sf::Vector2f(220.0f, 70.0f));
+    body.setPosition(basePos);
+    body.setFillColor(sf::Color(35, 32, 30));
+    body.setOutlineThickness(2.0f);
+    body.setOutlineColor(sf::Color(160, 120, 60));
+    mWindow.draw(body);
+
+    sf::RectangleShape barrel(sf::Vector2f(120.0f, 18.0f));
+    barrel.setPosition(basePos.x + 180.0f, basePos.y + 22.0f);
+    barrel.setFillColor(sf::Color(55, 55, 60));
+    barrel.setOutlineThickness(2.0f);
+    barrel.setOutlineColor(sf::Color(120, 90, 45));
+    mWindow.draw(barrel);
+
+    sf::RectangleShape vent(sf::Vector2f(40.0f, 12.0f));
+    vent.setPosition(basePos.x + 24.0f, basePos.y + 10.0f);
+    vent.setFillColor(sf::Color(120, 20, 20));
+    mWindow.draw(vent);
+}
+
+void Game::renderCrosshair()
+{
+    sf::Vector2u size = mWindow.getSize();
+    float cx = size.x * 0.5f;
+    float cy = size.y * 0.5f;
+
+    sf::Color crossColor(200, 170, 90);
+    float gap = 6.0f;
+    float length = 8.0f;
+
+    sf::VertexArray lines(sf::Lines, 8);
+    lines[0].position = sf::Vector2f(cx - gap - length, cy);
+    lines[1].position = sf::Vector2f(cx - gap, cy);
+    lines[2].position = sf::Vector2f(cx + gap, cy);
+    lines[3].position = sf::Vector2f(cx + gap + length, cy);
+    lines[4].position = sf::Vector2f(cx, cy - gap - length);
+    lines[5].position = sf::Vector2f(cx, cy - gap);
+    lines[6].position = sf::Vector2f(cx, cy + gap);
+    lines[7].position = sf::Vector2f(cx, cy + gap + length);
+
+    for (std::size_t i = 0; i < 8; i++)
+    {
+        lines[i].color = crossColor;
+    }
+
+    mWindow.draw(lines);
+}
+
+void Game::renderHitMarker()
+{
+    if (mHitMarkerTimer <= 0.0f)
+        return;
+
+    sf::Vector2u size = mWindow.getSize();
+    float cx = size.x * 0.5f;
+    float cy = size.y * 0.5f;
+    float len = 10.0f + (0.15f - mHitMarkerTimer) * 40.0f;
+    sf::Color color(210, 60, 60, 220);
+
+    sf::VertexArray lines(sf::Lines, 8);
+    lines[0].position = sf::Vector2f(cx - len, cy - len);
+    lines[1].position = sf::Vector2f(cx - 4.0f, cy - 4.0f);
+    lines[2].position = sf::Vector2f(cx + len, cy - len);
+    lines[3].position = sf::Vector2f(cx + 4.0f, cy - 4.0f);
+    lines[4].position = sf::Vector2f(cx - len, cy + len);
+    lines[5].position = sf::Vector2f(cx - 4.0f, cy + 4.0f);
+    lines[6].position = sf::Vector2f(cx + len, cy + len);
+    lines[7].position = sf::Vector2f(cx + 4.0f, cy + 4.0f);
+
+    for (std::size_t i = 0; i < 8; i++)
+    {
+        lines[i].color = color;
+    }
+
+    mWindow.draw(lines);
 }
 
 void Game::toggleChunkDebugMode()

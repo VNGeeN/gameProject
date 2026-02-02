@@ -7,6 +7,7 @@
 class Player;
 class Map;
 class Pseudo3DRenderer;
+class RayCalc;
 
 class EnemyManager
 {
@@ -20,6 +21,8 @@ public:
     void render2D(sf::RenderTarget &target) const;
     void render3D(Pseudo3DRenderer &renderer, const Player &player,
                   const RayCalc &rayCalc) const;
+    Enemy *findTargetInSight(const Player &player, const RayCalc &rayCalc,
+                             float maxDistance, float aimCone) const;
 
     size_t getEnemyCount() const { return mEnemies.size(); }
 

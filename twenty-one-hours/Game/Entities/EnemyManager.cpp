@@ -3,9 +3,11 @@
 #include "../Player/Player.h"
 #include "../Map/Map.h"
 #include "../Rendering/Render/Pseudo3DRenderer.h"
+#include "../Rendering/Ray/RayCalc.h"
 #include <cmath>
 #include <random>
 #include <iostream>
+#include <limits>
 
 EnemyManager::EnemyManager(Map &map) : mMap(map) {}
 
@@ -74,6 +76,7 @@ void EnemyManager::update(sf::Time deltaTime, Player &player)
     for (auto &enemy : mEnemies)
     {
         enemy->update(deltaTime, playerPos, playerAngle);
+        enemy->attackPlayer(player, deltaTime);
     }
 
     const float minSeparation = 0.6f;
@@ -139,6 +142,58 @@ void EnemyManager::update(sf::Time deltaTime, Player &player)
                        [](const auto &e)
                        { return !e->isAlive(); }),
         mEnemies.end());
+}
+
+Enemy *EnemyManager::findTargetInSight(const Player &player, const RayCalc &rayCalc,
+                                       float maxDistance, float aimCone) const
+{
+    Enemy *bestTarget = nullptr;
+    float bestScore = std::numeric_limits<float>::max();
+    sf::Vector2f playerPos(player.getX(), player.getY());
+    float playerAngle = player.getAngle();
+
+    for (const auto &enemy : mEnemies)
+    {
+        if (!enemy->isAlive())
+            continue;
+
+        sf::Vector2f enemyPos = enemy->getPosition();
+        float dx = enemyPos.x - playerPos.x;
+        float dy = enemyPos.y - playerPos.y;
+        float distance = std::sqrt(dx * dx + dy * dy);
+
+        if (distance > maxDistance)
+            continue;
+
+        float angleToEnemy = std::atan2(dy, dx);
+        float angleDiff = std::abs(angleToEnemy - playerAngle);
+        if (angleDiff > M_PI)
+            angleDiff = 2.0f * static_cast<float>(M_PI) - angleDiff;
+
+        if (angleDiff > aimCone * 0.5f)
+            continue;
+
+        RayCalc::Ray ray = rayCalc.calcSingleRay(angleToEnemy);
+        float angleDiffForRay = std::abs(angleToEnemy - playerAngle);
+        angleDiffForRay = std::min(angleDiffForRay,
+                                   2.0f * static_cast<float>(M_PI) - angleDiffForRay);
+        float cosAngle = std::cos(angleDiffForRay);
+        float rawRayDistance = (std::abs(cosAngle) > 0.0001f)
+                                   ? (ray.distance / cosAngle)
+                                   : ray.distance;
+
+        if (rawRayDistance + 0.1f < distance)
+            continue;
+
+        float score = distance + angleDiff * 6.0f;
+        if (score < bestScore)
+        {
+            bestScore = score;
+            bestTarget = enemy.get();
+        }
+    }
+
+    return bestTarget;
 }
 
 void EnemyManager::render2D(sf::RenderTarget &target) const

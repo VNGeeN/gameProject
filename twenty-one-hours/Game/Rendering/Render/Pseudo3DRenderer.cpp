@@ -1,6 +1,7 @@
 #include "Pseudo3DRenderer.h"
 #include <iostream>
 #include <sstream>
+#include <cmath>
 
 Pseudo3DRenderer::Pseudo3DRenderer(sf::RenderWindow &win, RayCalc &ray, Map &m, Player &p,
                                    const sf::Texture *enemyTex)
@@ -20,17 +21,35 @@ Pseudo3DRenderer::Pseudo3DRenderer(sf::RenderWindow &win, RayCalc &ray, Map &m, 
         mFloorRegion = textureManager.getRegion("SAND_FLOOR");
         mCeilingRegion = textureManager.getRegion("STONE_CEIL");
 
-        // Создаем отдельные текстуры для пола и потолка из атласа
-        if (mFloorRegion.width > 0 && mFloorRegion.height > 0)
+        sf::Image atlasImage = atlas->copyToImage();
+        sf::Vector2u atlasSize = atlasImage.getSize();
+
+        auto canExtractRegion = [&](const sf::IntRect &region) -> bool
         {
-            mFloorTexture = *atlas;
-            mFloorTexture.setRepeated(true); // Устанавливаем повторение здесь
+            if (region.width <= 0 || region.height <= 0)
+                return false;
+            return region.left >= 0 && region.top >= 0 &&
+                   region.left + region.width <= static_cast<int>(atlasSize.x) &&
+                   region.top + region.height <= static_cast<int>(atlasSize.y);
+        };
+
+        // Создаем отдельные текстуры для пола и потолка из атласа
+        if (canExtractRegion(mFloorRegion))
+        {
+            sf::Image floorImage;
+            floorImage.create(mFloorRegion.width, mFloorRegion.height);
+            floorImage.copy(atlasImage, 0, 0, mFloorRegion, true);
+            mFloorTexture.loadFromImage(floorImage);
+            mFloorTexture.setRepeated(true);
         }
 
-        if (mCeilingRegion.width > 0 && mCeilingRegion.height > 0)
+        if (canExtractRegion(mCeilingRegion))
         {
-            mCeilingTexture = *atlas;
-            mCeilingTexture.setRepeated(true); // Устанавливаем повторение здесь
+            sf::Image ceilingImage;
+            ceilingImage.create(mCeilingRegion.width, mCeilingRegion.height);
+            ceilingImage.copy(atlasImage, 0, 0, mCeilingRegion, true);
+            mCeilingTexture.loadFromImage(ceilingImage);
+            mCeilingTexture.setRepeated(true);
         }
     }
 }
@@ -109,8 +128,7 @@ void Pseudo3DRenderer::renderFloor()
         // Устанавливаем текстурные координаты В ПИКСЕЛЯХ, а не нормализованные
         if (mFloorRegion.width > 0 && mFloorRegion.height > 0)
         {
-            // Прямое использование мировых координат для текстурных координат
-            // Повторяем текстуру по мировым координатам
+
             floorVertices[idx].texCoords = sf::Vector2f(
                 leftWorld.x * textureScale,
                 leftWorld.y * textureScale);
@@ -196,7 +214,6 @@ void Pseudo3DRenderer::renderCeiling()
         // Устанавливаем текстурные координаты В ПИКСЕЛЯХ
         if (mCeilingRegion.width > 0 && mCeilingRegion.height > 0)
         {
-            // Прямое использование мировых координат для текстурных координат
             ceilingVertices[idx].texCoords = sf::Vector2f(
                 leftWorld.x * textureScale,
                 leftWorld.y * textureScale);
@@ -632,65 +649,20 @@ void Pseudo3DRenderer::renderSprite(const sf::Vector2f &spritePos,
     // X координата
     float screenX = (angleDiff / (player.fov / 2.0f) + 1.0f) * 0.5f * window.getSize().x;
 
-    // ===== ИСПРАВЛЕНИЕ: СТАБИЛЬНАЯ СИСТЕМА ДЛЯ ВСЕХ ДИСТАНЦИЙ =====
     float screenHeight = static_cast<float>(window.getSize().y);
+    float screenWidth = static_cast<float>(window.getSize().x);
     float horizon = screenHeight / 2.0f;
+    float distanceToProjection = screenWidth / (2.0f * tan(player.fov / 2.0f));
 
-    // РАЗНЫЕ РЕЖИМЫ ДЛЯ РАЗНЫХ ДИСТАНЦИЙ
-    float screenY;
-    float spriteScreenHeight;
+    float cameraHeight = 0.5f;
+    float spriteWorldHeight = 1.0f;
 
-    if (distance > 3.0f)
-    {
-        // Дальние враги: обычная проекция
-        spriteScreenHeight = (400.0f * 0.8f) / distance;   // 0.8 - высота врага
-        float verticalOffset = (0.5f * 400.0f) / distance; // 0.5 - высота камеры
-        screenY = horizon + verticalOffset;
-    }
-    else if (distance > 0.8f)
-    {
-        // Средние дистанции: плавный переход к фиксированным значениям
-        float t = (distance - 0.8f) / (3.0f - 0.8f); // От 0.8 до 3.0
-        if (t < 0.0f)
-            t = 0.0f;
-        if (t > 1.0f)
-            t = 1.0f;
+    float spriteScreenHeight = (spriteWorldHeight * distanceToProjection) / distance;
+    float screenY = horizon + (cameraHeight * distanceToProjection) / distance;
 
-        // Значения для близкой дистанции (distance = 0.8)
-        float nearHeight = screenHeight * 0.5f;
-        float nearY = horizon + screenHeight * 0.05f;
-
-        // Значения для дальней дистанции (distance = 3.0)
-        float farHeight = (400.0f * 0.8f) / 3.0f;
-        float farY = horizon + (0.5f * 400.0f) / 3.0f;
-
-        // Интерполяция
-        spriteScreenHeight = nearHeight * (1.0f - t) + farHeight * t;
-        screenY = nearY * (1.0f - t) + farY * t;
-    }
-    else
-    {
-        // Близкие враги: ФИКСИРОВАННЫЕ значения
-        spriteScreenHeight = screenHeight * 0.5f; // Всегда 50% высоты экрана
-        screenY = horizon + screenHeight * 0.05f; // Чуть выше горизонта
-    }
-
-    // Ограничения (без clamp)
-    float minHeight = 30.0f;
+    float minHeight = 24.0f;
     if (spriteScreenHeight < minHeight)
         spriteScreenHeight = minHeight;
-
-    float maxHeight = screenHeight * 0.7f;
-    if (spriteScreenHeight > maxHeight)
-        spriteScreenHeight = maxHeight;
-
-    // Не даем уйти за экран
-    float minY = horizon - screenHeight * 0.15f;
-    float maxY = horizon + screenHeight * 0.2f;
-    if (screenY < minY)
-        screenY = minY;
-    if (screenY > maxY)
-        screenY = maxY;
 
     // ===== ОТРИСОВКА =====
     sf::Sprite sprite(*texture);
@@ -701,21 +673,20 @@ void Pseudo3DRenderer::renderSprite(const sf::Vector2f &spritePos,
     float spriteScreenWidth = spriteScreenHeight * (region.width / static_cast<float>(region.height));
     sprite.setScale(spriteScreenWidth / region.width, spriteScreenHeight / region.height);
 
-    // Яркость с учетом видимости
+    // Яркость от расстояния, прозрачность от видимости
     float brightness = 1.0f / (1.0f + distance * 0.1f);
-    if (brightness > 1.0f) brightness = 1.0f;
-    if (brightness < 0.4f) brightness = 0.4f;
-    
-    brightness *= visibility; // Умножаем на видимость
-    
-    // Альфа-канал (прозрачность) также зависит от видимости
+    if (brightness > 1.0f)
+        brightness = 1.0f;
+    if (brightness < 0.4f)
+        brightness = 0.4f;
+
     sf::Color color(255, 255, 255);
     color.r = static_cast<sf::Uint8>(color.r * brightness);
     color.g = static_cast<sf::Uint8>(color.g * brightness);
     color.b = static_cast<sf::Uint8>(color.b * brightness);
-    color.a = static_cast<sf::Uint8>(255 * visibility); // Прозрачность
-    
+    color.a = static_cast<sf::Uint8>(255 * visibility);
+
     sprite.setColor(color);
-    
+
     window.draw(sprite);
 }

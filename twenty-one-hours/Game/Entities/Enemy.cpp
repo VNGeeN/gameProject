@@ -3,6 +3,7 @@
 #include "../Ray/RayCalc.h"
 #include <cmath>
 #include <random>
+#include <algorithm>
 #include "../Player/Player.h"
 
 Enemy::Enemy(Map &map, float x, float y)
@@ -143,30 +144,25 @@ void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float play
     // УБИРАЕМ ПОВТОРНОЕ ОБЪЯВЛЕНИЕ - используем уже вычисленные значения
     // В пределах поля зрения?
     bool inFOV = (angleDiff < ((M_PI / 3.0f) / 2.0f));
-    
+
     // Плавное изменение видимости
     float targetVisibility = inFOV ? 1.0f : 0.0f;
     float visibilitySpeed = 3.0f; // Скорость появления/исчезания
-    
-    if (mVisibility < targetVisibility) {
+
+    if (mVisibility < targetVisibility)
+    {
         mVisibility += visibilitySpeed * deltaTime.asSeconds();
-        if (mVisibility > targetVisibility) mVisibility = targetVisibility;
-    } else if (mVisibility > targetVisibility) {
-        mVisibility -= visibilitySpeed * deltaTime.asSeconds();
-        if (mVisibility < targetVisibility) mVisibility = targetVisibility;
+        if (mVisibility > targetVisibility)
+            mVisibility = targetVisibility;
     }
-    
-    // Также учитываем расстояние
-    float distance = sqrt(
-        std::pow(playerPos.x - mPosition.x, 2) + 
-        std::pow(playerPos.y - mPosition.y, 2)
-    );
-    
-    // Дальние враги менее видны
-    float distanceVisibility = 1.0f - (distance / 20.0f);
-    if (distanceVisibility < 0.0f) distanceVisibility = 0.0f;
-    
-    mVisibility *= distanceVisibility;
+    else if (mVisibility > targetVisibility)
+    {
+        mVisibility -= visibilitySpeed * deltaTime.asSeconds();
+        if (mVisibility < targetVisibility)
+            mVisibility = targetVisibility;
+    }
+
+    mVisibility = std::max(0.0f, std::min(mVisibility, 1.0f));
 
     // Анимация
     if (mFrameTimer.getElapsedTime().asSeconds() > mFrameRate)
@@ -260,14 +256,14 @@ void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float play
 //     angleToEnemy = std::atan2(mPosition.y - playerPos.y, mPosition.x - playerPos.x);
 //     angleDiff = std::abs(angleToEnemy - playerAngle);
 //     if (angleDiff > M_PI) angleDiff = 2 * M_PI - angleDiff;
-    
+
 //     // В пределах поля зрения?
 //     bool inFOV = (angleDiff < ((M_PI / 3.0f) / 2.0f));
-    
+
 //     // Плавное изменение видимости
 //     float targetVisibility = inFOV ? 1.0f : 0.0f;
 //     float visibilitySpeed = 3.0f; // Скорость появления/исчезания
-    
+
 //     if (mVisibility < targetVisibility) {
 //         mVisibility += visibilitySpeed * deltaTime.asSeconds();
 //         if (mVisibility > targetVisibility) mVisibility = targetVisibility;
@@ -275,17 +271,17 @@ void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float play
 //         mVisibility -= visibilitySpeed * deltaTime.asSeconds();
 //         if (mVisibility < targetVisibility) mVisibility = targetVisibility;
 //     }
-    
+
 //     // Также учитываем расстояние
 //     float distance = sqrt(
-//         std::pow(playerPos.x - mPosition.x, 2) + 
+//         std::pow(playerPos.x - mPosition.x, 2) +
 //         std::pow(playerPos.y - mPosition.y, 2)
 //     );
-    
+
 //     // Дальние враги менее видны
 //     float distanceVisibility = 1.0f - (distance / 20.0f);
 //     if (distanceVisibility < 0.0f) distanceVisibility = 0.0f;
-    
+
 //     mVisibility *= distanceVisibility;
 // }
 
@@ -424,7 +420,7 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
 {
     if (!mAlive || mVisibility <= 0.01f)
         return;
-    
+
     const sf::Texture *enemyTex = renderer.getEnemyTexture();
     if (!enemyTex)
         return;

@@ -12,6 +12,8 @@ public:
     float getY() const { return y; }
     float getAngle() const { return angle; }
 
+    void setPosition(float newX, float newY) { x = newX; y = newY; }
+
     void moveForward(float distance);
     void moveBackward(float distance);
     void rotate(float angle);

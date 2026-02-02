@@ -1,7 +1,7 @@
 #include "RayCalc.h"
 #include "../Spatial/Utils.h"
 #include <iostream>
-#include <algorithm> 
+#include <algorithm>
 
 RayCalc::RayCalc(Player &p, Map &m) : player(p), map(m)
 {
@@ -16,10 +16,18 @@ void RayCalc::calcRays(int rayCount)
     float posY = player.getY();
     float angle = player.getAngle();
 
+    if (rayCount <= 0)
+    {
+        return;
+    }
+
+    float rayStep = (rayCount == 1)
+                        ? 0.0f
+                        : (player.fov / static_cast<float>(rayCount - 1));
+
     for (int i = 0; i < rayCount; i++)
     {
-        float rayAngle = angle - (player.fov / 2.0f) +
-                         (player.fov * i / static_cast<float>(rayCount));
+        float rayAngle = angle - (player.fov / 2.0f) + (rayStep * i);
 
         Ray ray = calcSingleRay(rayAngle);
         rays.push_back(ray);
@@ -81,6 +89,34 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle) const
     int steps = 0;
     const int MAX_STEPS = 100;
 
+    Surface *initialSurface = map.getSurfaceAt(
+        static_cast<float>(mapX),
+        static_cast<float>(mapY),
+        Surface::Type::WALL);
+    if (initialSurface)
+    {
+        float localX = posX - std::floor(posX);
+        float localY = posY - std::floor(posY);
+        int segX = utils::clamp(static_cast<int>(localX * 3), 0, 2);
+        int segY = utils::clamp(static_cast<int>(localY * 3), 0, 2);
+
+        if (!initialSurface->isSegmentPassable(segX, segY))
+        {
+            ray.distance = 0.01f;
+            ray.hitX = posX;
+            ray.hitY = posY;
+            ray.mapX = mapX;
+            ray.mapY = mapY;
+            ray.side = 0;
+            ray.hitSurface = initialSurface;
+            ray.segmentX = segX;
+            ray.segmentY = segY;
+            ray.segmentColor = initialSurface->getColorAtSegment(segX, segY, ray.distance);
+            ray.hitWall = true;
+            return ray;
+        }
+    }
+
     while (!hit && steps < MAX_STEPS)
     {
         steps++;
@@ -89,13 +125,13 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle) const
         {
             sideDistX += deltaDistX;
             mapX += stepX;
-            side = 0; 
+            side = 0;
         }
         else
         {
             sideDistY += deltaDistY;
             mapY += stepY;
-            side = 1; 
+            side = 1;
         }
 
         if (mapX < 0 || mapX >= map.getWidth() ||
@@ -114,48 +150,47 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle) const
 
         if (surface)
         {
-            
+            float rawDistance;
             if (side == 0)
             {
-                ray.distance = (mapX - posX + (1 - stepX) / 2.0f) / rayDirX;
+                rawDistance = (mapX - posX + (1 - stepX) / 2.0f) / rayDirX;
             }
             else
             {
-                ray.distance = (mapY - posY + (1 - stepY) / 2.0f) / rayDirY;
+                rawDistance = (mapY - posY + (1 - stepY) / 2.0f) / rayDirY;
             }
 
-            if (ray.distance < 0.01f)
-                ray.distance = 0.01f;
+            if (rawDistance < 0.01f)
+                rawDistance = 0.01f;
 
             float angleDiff = std::abs(rayAngle - player.getAngle());
             if (angleDiff > static_cast<float>(M_PI))
                 angleDiff = 2.0f * static_cast<float>(M_PI) - angleDiff;
-            ray.distance *= cos(angleDiff);
+            ray.distance = rawDistance * cos(angleDiff);
             if (ray.distance < 0.01f)
                 ray.distance = 0.01f;
 
-            ray.hitX = posX + rayDirX * ray.distance;
-            ray.hitY = posY + rayDirY * ray.distance;
+            ray.hitX = posX + rayDirX * rawDistance;
+            ray.hitY = posY + rayDirY * rawDistance;
             ray.mapX = mapX;
             ray.mapY = mapY;
             ray.side = side;
             ray.hitSurface = surface;
 
-            
             float localX = ray.hitX - std::floor(ray.hitX);
             float localY = ray.hitY - std::floor(ray.hitY);
 
             int segX = -1, segY = -1;
 
             if (side == 0)
-            { 
+            {
                 segY = utils::clamp(static_cast<int>(localY * 3), 0, 2);
-                segX = (stepX > 0) ? 0 : 2; 
+                segX = (stepX > 0) ? 0 : 2;
             }
             else
-            { 
+            {
                 segX = utils::clamp(static_cast<int>(localX * 3), 0, 2);
-                segY = (stepY > 0) ? 0 : 2; 
+                segY = (stepY > 0) ? 0 : 2;
             }
 
             ray.segmentX = segX;
@@ -165,7 +200,6 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle) const
             {
                 continue;
             }
-
 
             ray.segmentColor = surface->getColorAtSegment(
                 segX, segY, ray.distance);
@@ -197,8 +231,15 @@ ObjectVisibilityData RayCalc::getObjectVisibility(GameObject *obj) const
         return data;
 
     Ray toObj = calcSingleRay(angleToObj);
-    if (toObj.distance < distance - 0.1f)
-        return data; 
+    float angleDiffForRay = std::abs(angleToObj - player.getAngle());
+    angleDiffForRay = std::min(angleDiffForRay, 2.0f * static_cast<float>(M_PI) - angleDiffForRay);
+    float cosAngle = std::cos(angleDiffForRay);
+    float rawRayDistance = (std::abs(cosAngle) > 0.0001f)
+                               ? (toObj.distance / cosAngle)
+                               : toObj.distance;
+
+    if (rawRayDistance < distance - 0.1f)
+        return data;
 
     if (distance < 5.0f)
     {

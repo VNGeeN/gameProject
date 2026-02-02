@@ -3,6 +3,7 @@
 #include "../Player/Player.h"
 #include "../Map/Map.h"
 #include "../Rendering/Render/Pseudo3DRenderer.h"
+#include <cmath>
 #include <random>
 #include <iostream>
 
@@ -64,7 +65,8 @@ void EnemyManager::spawnEnemies(int count)
     }
 }
 
-void EnemyManager::update(sf::Time deltaTime, const Player &player)
+void EnemyManager::update(sf::Time deltaTime, Player &player)
+
 {
     sf::Vector2f playerPos(player.getX(), player.getY());
     float playerAngle = player.getAngle();
@@ -72,6 +74,23 @@ void EnemyManager::update(sf::Time deltaTime, const Player &player)
     for (auto &enemy : mEnemies)
     {
         enemy->update(deltaTime, playerPos, playerAngle);
+    }
+
+    const float minSeparation = 0.6f;
+    for (const auto &enemy : mEnemies)
+    {
+        sf::Vector2f enemyPos = enemy->getPosition();
+        float dx = playerPos.x - enemyPos.x;
+        float dy = playerPos.y - enemyPos.y;
+        float distance = std::sqrt(dx * dx + dy * dy);
+
+        if (distance > 0.0f && distance < minSeparation)
+        {
+            float push = (minSeparation - distance) / distance;
+            playerPos.x += dx * push;
+            playerPos.y += dy * push;
+            player.setPosition(playerPos.x, playerPos.y);
+        }
     }
 
     // Удаление мёртвых

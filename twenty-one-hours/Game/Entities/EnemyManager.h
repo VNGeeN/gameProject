@@ -16,7 +16,7 @@ public:
     void addEnemy(std::unique_ptr<Enemy> enemy);
     void spawnEnemies(int count);
 
-    void update(sf::Time deltaTime, const Player &player);
+    void update(sf::Time deltaTime, Player &player);
     void render2D(sf::RenderTarget &target) const;
     void render3D(Pseudo3DRenderer &renderer, const Player &player,
                   const RayCalc &rayCalc) const;

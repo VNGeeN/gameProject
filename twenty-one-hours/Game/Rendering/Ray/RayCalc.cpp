@@ -167,8 +167,8 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle) const
             if (angleDiff > static_cast<float>(M_PI))
                 angleDiff = 2.0f * static_cast<float>(M_PI) - angleDiff;
             ray.distance = rawDistance * cos(angleDiff);
-            if (ray.distance < 0.01f)
-                ray.distance = 0.01f;
+            if (ray.distance < 0.02f)
+                ray.distance = 0.02f;
 
             ray.hitX = posX + rayDirX * rawDistance;
             ray.hitY = posY + rayDirY * rawDistance;

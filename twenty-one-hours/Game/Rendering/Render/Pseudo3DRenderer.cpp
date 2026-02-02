@@ -403,7 +403,7 @@ void Pseudo3DRenderer::renderWalls()
 
 void Pseudo3DRenderer::renderWallSlice(int column, const RayCalc::Ray &ray)
 {
-    if (!ray.hitSurface || ray.distance <= 0.01f)
+    if (!ray.hitSurface || ray.distance <= 0.0f)
         return;
 
     float wallHeight = calculateWallHeight(ray.distance);

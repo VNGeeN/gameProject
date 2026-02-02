@@ -87,18 +87,58 @@ void EnemyManager::update(sf::Time deltaTime, Player &player)
         if (distance > 0.0f && distance < minSeparation)
         {
             float push = (minSeparation - distance) / distance;
-            playerPos.x += dx * push;
-            playerPos.y += dy * push;
-            player.setPosition(playerPos.x, playerPos.y);
+            sf::Vector2f candidate(playerPos.x + dx * push, playerPos.y + dy * push);
+
+            if (!mMap.isWall(candidate.x, candidate.y))
+            {
+                playerPos = candidate;
+                player.setPosition(playerPos.x, playerPos.y);
+            }
+            else if (!mMap.isWall(candidate.x, playerPos.y))
+            {
+                playerPos.x = candidate.x;
+                player.setPosition(playerPos.x, playerPos.y);
+            }
+            else if (!mMap.isWall(playerPos.x, candidate.y))
+            {
+                playerPos.y = candidate.y;
+                player.setPosition(playerPos.x, playerPos.y);
+            }
+        }
+    }
+
+    const float enemySeparation = 0.7f;
+    for (size_t i = 0; i < mEnemies.size(); i++)
+    {
+        for (size_t j = i + 1; j < mEnemies.size(); j++)
+        {
+            sf::Vector2f posA = mEnemies[i]->getPosition();
+            sf::Vector2f posB = mEnemies[j]->getPosition();
+
+            float dx = posB.x - posA.x;
+            float dy = posB.y - posA.y;
+            float distance = std::sqrt(dx * dx + dy * dy);
+
+            if (distance > 0.0001f && distance < enemySeparation)
+            {
+                float push = (enemySeparation - distance) / distance * 0.5f;
+                posA.x -= dx * push;
+                posA.y -= dy * push;
+                posB.x += dx * push;
+                posB.y += dy * push;
+
+                mEnemies[i]->setPosition(posA);
+                mEnemies[j]->setPosition(posB);
+            }
         }
     }
 
     // Удаление мёртвых
     mEnemies.erase(
         std::remove_if(mEnemies.begin(), mEnemies.end(),
-            [](const auto& e) { return !e->isAlive(); }),
-        mEnemies.end()
-    );
+                       [](const auto &e)
+                       { return !e->isAlive(); }),
+        mEnemies.end());
 }
 
 void EnemyManager::render2D(sf::RenderTarget &target) const
@@ -109,26 +149,27 @@ void EnemyManager::render2D(sf::RenderTarget &target) const
     }
 }
 
-void EnemyManager::render3D(Pseudo3DRenderer &renderer, const Player &player, 
+void EnemyManager::render3D(Pseudo3DRenderer &renderer, const Player &player,
                             const RayCalc &rayCalc) const // Добавьте const
 {
     sf::Vector2f playerPos(player.getX(), player.getY());
-    
+
     // Сортируем врагов по расстоянию для правильного порядка отрисовки
-    std::vector<std::pair<float, Enemy*>> sortedEnemies;
-    for (const auto& enemy : mEnemies)
+    std::vector<std::pair<float, Enemy *>> sortedEnemies;
+    for (const auto &enemy : mEnemies)
     {
         float dx = enemy->getPosition().x - playerPos.x;
         float dy = enemy->getPosition().y - playerPos.y;
-        float distance = std::sqrt(dx*dx + dy*dy);
+        float distance = std::sqrt(dx * dx + dy * dy);
         sortedEnemies.push_back({distance, enemy.get()});
     }
-    
+
     // Сортируем по убыванию расстояния (рисуем дальних первыми)
     std::sort(sortedEnemies.begin(), sortedEnemies.end(),
-              [](const auto& a, const auto& b) { return a.first > b.first; });
-    
-    for (const auto& [distance, enemy] : sortedEnemies)
+              [](const auto &a, const auto &b)
+              { return a.first > b.first; });
+
+    for (const auto &[distance, enemy] : sortedEnemies)
     {
         enemy->render3D(renderer, playerPos, rayCalc);
     }

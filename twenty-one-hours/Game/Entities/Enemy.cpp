@@ -421,6 +421,9 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
     if (!mAlive || mVisibility <= 0.01f)
         return;
 
+    if (!isVisible(playerPos, rayCalc))
+        return;
+
     const sf::Texture *enemyTex = renderer.getEnemyTexture();
     if (!enemyTex)
         return;
@@ -429,7 +432,8 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
     float dy = playerPos.y - mPosition.y;
     float distance = std::sqrt(dx * dx + dy * dy);
 
-    if (distance > 20.0f && mFrameCounter % 4 != 0)
+    const float maxRenderDistance = 40.0f;
+    if (distance > maxRenderDistance)
         return;
 
     // Упрощенная анимация: одна строка с 8 кадрами

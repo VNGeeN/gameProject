@@ -50,6 +50,7 @@ public:
     void die() { mAlive = false; }
 
     sf::Vector2f getPosition() const { return mPosition; }
+    void setPosition(const sf::Vector2f &position) { mPosition = position; }
     float getDetectionDistance() const { return mDetectionDistance; }
 
     int mHealth = 100;

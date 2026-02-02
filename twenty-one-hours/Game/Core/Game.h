@@ -25,6 +25,16 @@ private:
     void renderWeapon();
     void renderCrosshair();
     void renderHitMarker();
+    void renderMainMenu();
+    void renderPauseMenu();
+    void handleMenuInput(const sf::Event &event);
+
+    enum class GameState
+    {
+        MainMenu,
+        Playing,
+        Paused
+    };
 
     sf::RenderWindow mWindow;
     
@@ -33,6 +43,10 @@ private:
     std::unique_ptr<RayCalc> mRayCalc;
     std::unique_ptr<Pseudo3DRenderer> mRenderer;
     
+    sf::Font mUiFont;
+    GameState mState = GameState::MainMenu;
+    int mMainMenuIndex = 0;
+    int mPauseMenuIndex = 0;
 
     bool mDebugMode = false;
     void toggleDebugMode();

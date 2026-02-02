@@ -6,6 +6,11 @@
 Game::Game()
     : mWindow(sf::VideoMode(800, 600), "twenty-one-hours")
 {
+    if (!mUiFont.loadFromFile("assets/fonts/DejaVuSans.ttf"))
+    {
+        std::cerr << "[Game] Failed to load UI font assets/fonts/DejaVuSans.ttf" << std::endl;
+    }
+
     std::cout << "[Game] Step 1: Loading atlas..." << std::endl;
     auto &tm = TextureManager::getInstance();
     tm.loadAtlas("main", "assets/textures/material_atlas.png");
@@ -61,7 +66,22 @@ void Game::processEvents()
 
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
         {
-            mWindow.setMouseCursorVisible(true);
+            if (mState == GameState::Playing)
+            {
+                mState = GameState::Paused;
+                mWindow.setMouseCursorVisible(true);
+                mPauseMenuIndex = 0;
+            }
+            else if (mState == GameState::Paused)
+            {
+                mState = GameState::Playing;
+                mWindow.setMouseCursorVisible(false);
+            }
+        }
+
+        if (event.type == sf::Event::KeyPressed)
+        {
+            handleMenuInput(event);
         }
 
         if (event.type == sf::Event::KeyPressed)
@@ -85,22 +105,23 @@ void Game::processEvents()
 
         if (event.type == sf::Event::MouseButtonPressed)
         {
-            mWindow.setMouseCursorVisible(false);
+            if (mState == GameState::Playing)
+            {
+                mWindow.setMouseCursorVisible(false);
+            }
         }
     }
+
+    if (mState != GameState::Playing)
+        return;
 
     if (!mWindow.hasFocus())
         return;
 
     static bool mouseCaptured = true;
 
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
-    {
-        mouseCaptured = false;
-        mWindow.setMouseCursorVisible(true);
-    }
-    else if (sf::Mouse::isButtonPressed(sf::Mouse::Left) ||
-             sf::Mouse::isButtonPressed(sf::Mouse::Right))
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Left) ||
+        sf::Mouse::isButtonPressed(sf::Mouse::Right))
     {
         mouseCaptured = true;
         mWindow.setMouseCursorVisible(false);
@@ -150,6 +171,9 @@ void Game::toggleDebugMode()
 
 void Game::update(sf::Time deltaTime)
 {
+    if (mState != GameState::Playing)
+        return;
+
     float moveSpeed = 3.0f * deltaTime.asSeconds();
     float rotateSpeed = 2.0f * deltaTime.asSeconds();
 
@@ -315,6 +339,13 @@ void Game::render()
 {
     mWindow.clear(sf::Color::Black);
 
+    if (mState == GameState::MainMenu)
+    {
+        renderMainMenu();
+        mWindow.display();
+        return;
+    }
+
     if (mDebug2DMode)
     {
         render2D();
@@ -333,6 +364,11 @@ void Game::render()
         renderWeapon();
         renderCrosshair();
         renderHitMarker();
+    }
+
+    if (mState == GameState::Paused)
+    {
+        renderPauseMenu();
     }
 
     mWindow.display();
@@ -517,6 +553,166 @@ void Game::renderHitMarker()
     }
 
     mWindow.draw(lines);
+}
+
+void Game::handleMenuInput(const sf::Event &event)
+{
+    if (event.key.code == sf::Keyboard::F1 || event.key.code == sf::Keyboard::F2 ||
+        event.key.code == sf::Keyboard::F3)
+    {
+        return;
+    }
+
+    if (mState == GameState::MainMenu)
+    {
+        const int optionCount = 2;
+        if (event.key.code == sf::Keyboard::Up || event.key.code == sf::Keyboard::W)
+        {
+            mMainMenuIndex = (mMainMenuIndex - 1 + optionCount) % optionCount;
+        }
+        else if (event.key.code == sf::Keyboard::Down || event.key.code == sf::Keyboard::S)
+        {
+            mMainMenuIndex = (mMainMenuIndex + 1) % optionCount;
+        }
+        else if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Return)
+        {
+            if (mMainMenuIndex == 0)
+            {
+                mState = GameState::Playing;
+                mWindow.setMouseCursorVisible(false);
+            }
+            else
+            {
+                mWindow.close();
+            }
+        }
+        return;
+    }
+
+    if (mState == GameState::Paused)
+    {
+        const int optionCount = 2;
+        if (event.key.code == sf::Keyboard::Up || event.key.code == sf::Keyboard::W)
+        {
+            mPauseMenuIndex = (mPauseMenuIndex - 1 + optionCount) % optionCount;
+        }
+        else if (event.key.code == sf::Keyboard::Down || event.key.code == sf::Keyboard::S)
+        {
+            mPauseMenuIndex = (mPauseMenuIndex + 1) % optionCount;
+        }
+        else if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Return)
+        {
+            if (mPauseMenuIndex == 0)
+            {
+                mState = GameState::Playing;
+                mWindow.setMouseCursorVisible(false);
+            }
+            else
+            {
+                mState = GameState::MainMenu;
+                mWindow.setMouseCursorVisible(true);
+                mMainMenuIndex = 0;
+            }
+        }
+    }
+}
+
+void Game::renderMainMenu()
+{
+    sf::Vector2u size = mWindow.getSize();
+    sf::RectangleShape background(sf::Vector2f(static_cast<float>(size.x), static_cast<float>(size.y)));
+    background.setFillColor(sf::Color(10, 10, 12));
+    mWindow.draw(background);
+
+    sf::Text title;
+    title.setFont(mUiFont);
+    title.setString(L"Двадцать один час");
+    title.setCharacterSize(48);
+    title.setFillColor(sf::Color(210, 190, 130));
+    title.setPosition(size.x * 0.5f - title.getGlobalBounds().width * 0.5f, 80.0f);
+    mWindow.draw(title);
+
+    sf::Text subtitle;
+    subtitle.setFont(mUiFont);
+    subtitle.setString(L"Главное меню");
+    subtitle.setCharacterSize(22);
+    subtitle.setFillColor(sf::Color(140, 130, 110));
+    subtitle.setPosition(size.x * 0.5f - subtitle.getGlobalBounds().width * 0.5f, 140.0f);
+    mWindow.draw(subtitle);
+
+    const wchar_t *labels[2] = {L"Начать игру", L"Выход"};
+
+    for (int i = 0; i < 2; ++i)
+    {
+        bool selected = i == mMainMenuIndex;
+        sf::RectangleShape button(sf::Vector2f(320.0f, 52.0f));
+        button.setPosition(size.x * 0.5f - 160.0f, 240.0f + i * 70.0f);
+        button.setFillColor(selected ? sf::Color(90, 70, 40) : sf::Color(30, 28, 26));
+        button.setOutlineThickness(2.0f);
+        button.setOutlineColor(selected ? sf::Color(210, 170, 90) : sf::Color(80, 70, 50));
+        mWindow.draw(button);
+
+        sf::Text label;
+        label.setFont(mUiFont);
+        label.setString(labels[i]);
+        label.setCharacterSize(24);
+        label.setFillColor(selected ? sf::Color(230, 210, 150) : sf::Color(170, 160, 130));
+        label.setPosition(button.getPosition().x + 24.0f, button.getPosition().y + 12.0f);
+        mWindow.draw(label);
+    }
+
+    sf::Text hint;
+    hint.setFont(mUiFont);
+    hint.setString(L"Управление: стрелки / W,S — выбор, Enter — подтверждение");
+    hint.setCharacterSize(16);
+    hint.setFillColor(sf::Color(110, 110, 110));
+    hint.setPosition(size.x * 0.5f - hint.getGlobalBounds().width * 0.5f, size.y - 60.0f);
+    mWindow.draw(hint);
+}
+
+void Game::renderPauseMenu()
+{
+    sf::Vector2u size = mWindow.getSize();
+    sf::RectangleShape overlay(sf::Vector2f(static_cast<float>(size.x), static_cast<float>(size.y)));
+    overlay.setFillColor(sf::Color(0, 0, 0, 160));
+    mWindow.draw(overlay);
+
+    sf::Text title;
+    title.setFont(mUiFont);
+    title.setString(L"Пауза");
+    title.setCharacterSize(42);
+    title.setFillColor(sf::Color(220, 200, 150));
+    title.setPosition(size.x * 0.5f - title.getGlobalBounds().width * 0.5f, 90.0f);
+    mWindow.draw(title);
+
+    const wchar_t *labels[2] = {L"Продолжить", L"В главное меню"};
+
+    for (int i = 0; i < 2; ++i)
+    {
+        bool selected = i == mPauseMenuIndex;
+        sf::RectangleShape button(sf::Vector2f(320.0f, 52.0f));
+        button.setPosition(size.x * 0.5f - 160.0f, 200.0f + i * 70.0f);
+        button.setFillColor(selected ? sf::Color(90, 70, 40) : sf::Color(30, 28, 26));
+        button.setOutlineThickness(2.0f);
+        button.setOutlineColor(selected ? sf::Color(210, 170, 90) : sf::Color(80, 70, 50));
+        mWindow.draw(button);
+
+        sf::Text label;
+        label.setFont(mUiFont);
+        label.setString(labels[i]);
+        label.setCharacterSize(24);
+        label.setFillColor(selected ? sf::Color(230, 210, 150) : sf::Color(170, 160, 130));
+        label.setPosition(button.getPosition().x + 24.0f, button.getPosition().y + 12.0f);
+        mWindow.draw(label);
+    }
+
+    sf::Text hint;
+    hint.setFont(mUiFont);
+    hint.setString(L"Esc — продолжить, стрелки / W,S — выбор");
+    hint.setCharacterSize(16);
+    hint.setFillColor(sf::Color(120, 120, 120));
+    hint.setPosition(size.x * 0.5f - hint.getGlobalBounds().width * 0.5f, size.y - 60.0f);
+    mWindow.draw(hint);
 }
 
 void Game::toggleChunkDebugMode()

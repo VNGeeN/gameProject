@@ -7,6 +7,7 @@
 #include "ObjectManager.h"
 #include "TextureManager.h"
 #include <memory>
+#include "EnemyManager.h"
 
 class Game
 {
@@ -21,19 +22,25 @@ private:
     void handleInput(sf::Time deltaTime);
 
     sf::RenderWindow mWindow;
-    // Map mMap;
-    // Player mPlayer;
-    // RayCalc mRayCalc;
-    // Pseudo3DRenderer mRenderer;
+    
     std::unique_ptr<Map> mMap;
     std::unique_ptr<Player> mPlayer;
     std::unique_ptr<RayCalc> mRayCalc;
     std::unique_ptr<Pseudo3DRenderer> mRenderer;
-    //ObjectManager mObjectManager;
+    
 
     bool mDebugMode = false;
     void toggleDebugMode();
 
     bool mDebug2DMode = false; 
-    void render2D();           
+    void render2D();  
+    
+    bool mChunkDebugMode = false;
+    void toggleChunkDebugMode();
+
+    void drawGrid();
+
+    std::unique_ptr<EnemyManager> mEnemyManager;
+
+    sf::Texture mEnemyTexture;
 };

@@ -2,24 +2,32 @@
 #include "Map.h"
 #include <cmath>
 
-Chunk::Chunk(const Coord &coord, Map &map)
-    : mCoord(coord), mMap(map)
-{
+Chunk::Chunk(const Coord& coord, Map& map) 
+    : mCoord(coord), mMap(map) {
 }
 
-Surface *Chunk::getSurfaceAtLocal(int localX, int localY, Surface::Type type) const
-{
+Surface* Chunk::getSurfaceAtLocal(int localX, int localY, Surface::Type type) const {
     if (localX < 0 || localX >= CHUNK_SIZE ||
         localY < 0 || localY >= CHUNK_SIZE)
     {
         return nullptr;
     }
 
-    int globalX = toGlobalX(localX);
-    int globalY = toGlobalY(localY);
-    return mMap.getSurfaceAt(static_cast<float>(globalX),
-                             static_cast<float>(globalY),
-                             type);
+    int globalX = mCoord.x * CHUNK_SIZE + localX;
+    int globalY = mCoord.y * CHUNK_SIZE + localY;
+    
+    // Используем прямой доступ к массиву клеток через Map
+    // Нужно добавить в Map метод getSurfaceDirect
+    return mMap.getSurfaceDirect(globalX, globalY, type);
+}
+
+
+sf::FloatRect Chunk::getBounds() const {
+    float left = static_cast<float>(mCoord.x * CHUNK_SIZE);
+    float top = static_cast<float>(mCoord.y * CHUNK_SIZE);
+    return sf::FloatRect(left, top, 
+                        static_cast<float>(CHUNK_SIZE), 
+                        static_cast<float>(CHUNK_SIZE));
 }
 
 void Chunk::drawWalls(sf::RenderTarget &target) const
@@ -28,7 +36,10 @@ void Chunk::drawWalls(sf::RenderTarget &target) const
     {
         for (int x = 0; x < CHUNK_SIZE; x++)
         {
-            auto wall = getSurfaceAtLocal(x, y, Surface::Type::WALL);
+            int globalX = mCoord.x * CHUNK_SIZE + x;
+            int globalY = mCoord.y * CHUNK_SIZE + y;
+            
+            auto wall = mMap.getSurfaceDirect(globalX, globalY, Surface::Type::WALL);
             if (wall)
             {
                 wall->draw(target);
@@ -43,7 +54,10 @@ void Chunk::drawFloors(sf::RenderTarget &target) const
     {
         for (int x = 0; x < CHUNK_SIZE; x++)
         {
-            auto floor = getSurfaceAtLocal(x, y, Surface::Type::FLOOR);
+            int globalX = mCoord.x * CHUNK_SIZE + x;
+            int globalY = mCoord.y * CHUNK_SIZE + y;
+            
+            auto floor = mMap.getSurfaceDirect(globalX, globalY, Surface::Type::FLOOR);
             if (floor)
             {
                 floor->draw(target);
@@ -58,20 +72,14 @@ void Chunk::drawCeilings(sf::RenderTarget &target) const
     {
         for (int x = 0; x < CHUNK_SIZE; x++)
         {
-            auto ceiling = getSurfaceAtLocal(x, y, Surface::Type::CEILING);
+            int globalX = mCoord.x * CHUNK_SIZE + x;
+            int globalY = mCoord.y * CHUNK_SIZE + y;
+            
+            auto ceiling = mMap.getSurfaceDirect(globalX, globalY, Surface::Type::CEILING);
             if (ceiling)
             {
                 ceiling->draw(target);
             }
         }
     }
-}
-
-sf::FloatRect Chunk::getBounds() const
-{
-    float left = static_cast<float>(mCoord.x * CHUNK_SIZE);
-    float top = static_cast<float>(mCoord.y * CHUNK_SIZE);
-    return sf::FloatRect(left, top,
-                         static_cast<float>(CHUNK_SIZE),
-                         static_cast<float>(CHUNK_SIZE));
 }

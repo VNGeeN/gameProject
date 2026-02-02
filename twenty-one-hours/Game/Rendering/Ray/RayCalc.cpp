@@ -26,7 +26,7 @@ void RayCalc::calcRays(int rayCount)
     }
 }
 
-RayCalc::Ray RayCalc::calcSingleRay(float rayAngle)
+RayCalc::Ray RayCalc::calcSingleRay(float rayAngle) const
 {
     Ray ray;
     ray.hitWall = false;
@@ -178,7 +178,7 @@ RayCalc::Ray RayCalc::calcSingleRay(float rayAngle)
     return ray;
 }
 
-ObjectVisibilityData RayCalc::getObjectVisibility(GameObject *obj)
+ObjectVisibilityData RayCalc::getObjectVisibility(GameObject *obj) const
 {
     ObjectVisibilityData data;
     data.isVisible = false;

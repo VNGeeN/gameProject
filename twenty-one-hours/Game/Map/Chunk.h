@@ -1,14 +1,13 @@
 #pragma once
 #include <SFML/Graphics.hpp>
-#include <vector>
 #include "Surface.h"
 
-class Map; 
+class Map;
 
 class Chunk
 {
 public:
-    static constexpr int CHUNK_SIZE = 8; 
+    static constexpr int CHUNK_SIZE = 8; // 8x8 cells
 
     struct Coord
     {
@@ -35,12 +34,12 @@ public:
 
     const Coord &getCoord() const { return mCoord; }
     sf::FloatRect getBounds() const;
-    bool isLoaded() const { return true; } 
+    bool isLoaded() const { return true; }
 
     int toGlobalX(int localX) const { return mCoord.x * CHUNK_SIZE + localX; }
     int toGlobalY(int localY) const { return mCoord.y * CHUNK_SIZE + localY; }
 
 private:
     Coord mCoord;
-    Map &mMap; 
+    Map &mMap; // ссылка на Map — НЕТ КОПИРОВАНИЯ ДАННЫХ!
 };

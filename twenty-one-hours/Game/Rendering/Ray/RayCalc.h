@@ -29,10 +29,10 @@ public:
 
     RayCalc(Player &player, Map &map);
     void calcRays(int rayCount);
-    Ray calcSingleRay(float rayAngle);
+    Ray calcSingleRay(float rayAngle) const;
     const std::vector<Ray> &getRays() const { return rays; }
 
-    ObjectVisibilityData getObjectVisibility(GameObject *obj);
+    ObjectVisibilityData getObjectVisibility(GameObject *obj) const;
 
 private:
     std::vector<Ray> rays;

@@ -12,7 +12,8 @@
 class Pseudo3DRenderer
 {
 public:
-    Pseudo3DRenderer(sf::RenderWindow &win, RayCalc &ray, Map &m, Player &p);
+    Pseudo3DRenderer(sf::RenderWindow &win, RayCalc &ray, Map &m, Player &p,
+                     const sf::Texture *enemyTex = nullptr);
     void render();
     void renderWalls();
     void renderWallSlice(int column, const RayCalc::Ray &ray);
@@ -24,7 +25,16 @@ public:
 
     void renderDebugInfo();
 
-    SkyboxRenderer& getSkyboxRenderer() { return mSkyboxRenderer; }
+    SkyboxRenderer &getSkyboxRenderer() { return mSkyboxRenderer; }
+
+    void renderSprite(const sf::Vector2f &spritePos,
+                      const sf::Vector2f &playerPos,
+                      const sf::Texture *texture,
+                      const sf::IntRect &region,
+                      float rotation = 0.0f,
+                      float visibility = 0.0f);
+
+    const sf::Texture *getEnemyTexture() const { return mEnemyTexture; }
 
 private:
     sf::RenderWindow &window;
@@ -33,6 +43,11 @@ private:
     Player &player;
 
     static constexpr float MAX_VIEW_DISTANCE = 20.0f;
+
+    sf::Texture mFloorTexture;
+    sf::Texture mCeilingTexture;
+    sf::IntRect mFloorRegion;
+    sf::IntRect mCeilingRegion;
 
     float calculateWallHeight(float distance) const;
     float calculateObjectScale(float distance);
@@ -53,6 +68,8 @@ private:
     void renderCeiling();
 
     sf::Vector2f calculateWorldPosForFloorCeiling(int screenX, int screenY, bool isFloor) const;
+
+    const sf::Texture *mEnemyTexture = nullptr;
 
     SkyboxRenderer mSkyboxRenderer;
 };

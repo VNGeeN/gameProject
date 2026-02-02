@@ -37,6 +37,18 @@ public:
 
     void updateVisibleChunks(float x, float y);
 
+    // Прямой доступ к поверхности (для чанков и отладки)
+    Surface *getSurfaceDirect(int x, int y, Surface::Type type) const
+    {
+        if (x >= 0 && x < mWidth && y >= 0 && y < mHeight)
+        {
+            return mCells[y][x].get(type);
+        }
+        return nullptr;
+    }
+
+    sf::Vector2f findPlayerStartPosition() const;
+
 private:
     struct Cell
     {
@@ -77,4 +89,8 @@ private:
     CollisionLayer mCollisionLayer;
 
     std::unique_ptr<ChunkManager> mChunkManager;
+
+    void createRoom(int x, int y, int w, int h);
+    void createHorizontalCorridor(int x1, int x2, int y);
+    void createVerticalCorridor(int x, int y1, int y2);
 };

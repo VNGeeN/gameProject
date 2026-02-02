@@ -22,7 +22,9 @@ add_executable(twenty-one-hours
     Game/Entities/Surface.cpp
     Game/Entities/TextureManager.cpp   
     Game/Map/CollisionLayer.cpp
-    Game/Rendering/Render/Skybox/SkyboxRenderer.cpp          
+    Game/Rendering/Render/Skybox/SkyboxRenderer.cpp
+    Game/Entities/Enemy.cpp
+    Game/Entities/EnemyManager.cpp
 )
 
 target_include_directories(twenty-one-hours PRIVATE 

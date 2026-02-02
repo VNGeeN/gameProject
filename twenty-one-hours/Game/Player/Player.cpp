@@ -4,10 +4,12 @@
 
 Player::Player(Map &map) : map(map)
 {
-    x = 1.5f;
-    y = 1.5f;
-    angle = 0.0f;      
-    fov = M_PI / 3.0f; 
+    sf::Vector2f startPos = map.findPlayerStartPosition();
+    x = startPos.x;
+    y = startPos.y;
+
+    angle = 0.0f;
+    fov = M_PI / 3.0f;
 }
 
 void Player::moveForward(float distance)
@@ -15,7 +17,7 @@ void Player::moveForward(float distance)
 
     float newX = x + cos(angle) * distance;
     float newY = y + sin(angle) * distance;
-    
+
     if (!map.isWall(newX, newY))
     {
         x = newX;

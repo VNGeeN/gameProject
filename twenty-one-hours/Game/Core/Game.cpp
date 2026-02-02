@@ -6,21 +6,36 @@ Game::Game()
     : mWindow(sf::VideoMode(800, 600), "twenty-one-hours")
 {
     std::cout << "[Game] Step 1: Loading atlas..." << std::endl;
-    auto& tm = TextureManager::getInstance();
+    auto &tm = TextureManager::getInstance();
     tm.loadAtlas("main", "assets/textures/material_atlas.png");
     tm.initDefaultRegions();
+
+    // Загружаем отдельную текстуру врага
+    mEnemyTexture.loadFromFile("assets/textures/enemy.png");
 
     std::cout << "[Game] Step 2: Creating Map..." << std::endl;
     mMap = std::make_unique<Map>();
 
+    std::cout << "[Game] Map size: " << mMap->getWidth()
+              << "x" << mMap->getHeight() << std::endl;
+
     std::cout << "[Game] Step 3: Creating Player..." << std::endl;
     mPlayer = std::make_unique<Player>(*mMap);
+
+    // Проверка позиции игрока
+    std::cout << "[Game] Player at: (" << mPlayer->getX()
+              << ", " << mPlayer->getY() << ")" << std::endl;
 
     std::cout << "[Game] Step 4: Creating RayCalc..." << std::endl;
     mRayCalc = std::make_unique<RayCalc>(*mPlayer, *mMap);
 
     std::cout << "[Game] Step 5: Creating Renderer..." << std::endl;
-    mRenderer = std::make_unique<Pseudo3DRenderer>(mWindow, *mRayCalc, *mMap, *mPlayer);
+    mRenderer = std::make_unique<Pseudo3DRenderer>(mWindow, *mRayCalc, *mMap, *mPlayer, &mEnemyTexture);
+
+    std::cout << "[Game] Step 6: Creating EnemyManager..." << std::endl;
+    mEnemyManager = std::make_unique<EnemyManager>(*mMap);
+
+    mEnemyManager->spawnEnemies(5); // 5 врагов для началаf
 }
 
 void Game::run()
@@ -56,10 +71,15 @@ void Game::processEvents()
             }
 
             if (event.key.code == sf::Keyboard::F2)
-            { 
+            {
                 mDebug2DMode = !mDebug2DMode;
                 std::cout << "2D Debug mode: " << (mDebug2DMode ? "ON" : "OFF") << std::endl;
             }
+        }
+
+        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::F3)
+        {
+            toggleChunkDebugMode();
         }
 
         if (event.type == sf::Event::MouseButtonPressed)
@@ -96,13 +116,13 @@ void Game::processEvents()
 
     if (deltaX != 0 || deltaY != 0)
     {
-        float sensitivity = 0.002f; 
+        float sensitivity = 0.002f;
         mPlayer->rotate(deltaX * sensitivity);
 
-        // Наклон по Y 
+        // Наклон по Y
         // float pitchSensitivity = 0.001f;
         // mCameraPitch += deltaY * pitchSensitivity;
-        // mCameraPitch = std::clamp(mCameraPitch, -1.0f, 1.0f); 
+        // mCameraPitch = std::clamp(mCameraPitch, -1.0f, 1.0f);
 
         sf::Mouse::setPosition(center, mWindow);
     }
@@ -152,11 +172,15 @@ void Game::update(sf::Time deltaTime)
         mPlayer->rotate(rotateSpeed);
     }
 
-    mRayCalc->calcRays(mWindow.getSize().x);
-
     if (mMap->getWidth() > 16 || mMap->getHeight() > 16)
     {
         mMap->updateVisibleChunks(mPlayer->getX(), mPlayer->getY());
+    }
+
+    // Обновляем врагов
+    if (mEnemyManager)
+    {
+        mEnemyManager->update(deltaTime, *mPlayer);
     }
 
     mRayCalc->calcRays(mWindow.getSize().x);
@@ -168,26 +192,77 @@ void Game::render2D()
 
     sf::View originalView = mWindow.getView();
 
-    sf::View view(sf::FloatRect(0, 0, 10, 10));
+    // Динамический вид на основе размера карты
+    float mapWidth = static_cast<float>(mMap->getWidth());
+    float mapHeight = static_cast<float>(mMap->getHeight());
+
+    // Вид, показывающий всю карту плюс небольшие отступы
+    float padding = 2.0f; // Отступ от краев
+    sf::View view(sf::FloatRect(
+        -padding,
+        -padding,
+        mapWidth + 2 * padding,
+        mapHeight + 2 * padding));
+
+    // Центрируем вид на середине карты
+    view.setCenter(mapWidth / 2.0f, mapHeight / 2.0f);
     mWindow.setView(view);
 
+    // Отладочная информация
+    if (mChunkDebugMode)
+    {
+        // Рисуем сетку (опционально)
+        drawGrid();
+    }
+
+    // Отрисовка в правильном порядке
+    mMap->drawFloors(mWindow);
     mMap->drawWalls(mWindow);
 
-    sf::CircleShape playerShape(0.1f);
+    // Игрок (в мировых координатах)
+    sf::CircleShape playerShape(0.2f); // Немного больше для видимости
     playerShape.setFillColor(sf::Color::Green);
     playerShape.setPosition(mPlayer->getX() - 0.1f, mPlayer->getY() - 0.1f);
     mWindow.draw(playerShape);
 
+    // Линия направления взгляда
     sf::VertexArray line(sf::Lines, 2);
     line[0].position = sf::Vector2f(mPlayer->getX(), mPlayer->getY());
     line[0].color = sf::Color::Red;
     line[1].position = sf::Vector2f(
-        mPlayer->getX() + cos(mPlayer->getAngle()) * 0.5f,
-        mPlayer->getY() + sin(mPlayer->getAngle()) * 0.5f);
+        mPlayer->getX() + cos(mPlayer->getAngle()) * 1.0f,
+        mPlayer->getY() + sin(mPlayer->getAngle()) * 1.0f);
     line[1].color = sf::Color::Red;
     mWindow.draw(line);
 
+    if (mEnemyManager)
+    {
+        mEnemyManager->render2D(mWindow);
+    }
+
     mWindow.setView(originalView);
+}
+
+void Game::drawGrid()
+{
+    // Рисуем сетку для отладки (опционально)
+    sf::VertexArray grid(sf::Lines);
+
+    // Вертикальные линии
+    for (int x = 0; x <= mMap->getWidth(); x++)
+    {
+        grid.append(sf::Vertex(sf::Vector2f(static_cast<float>(x), 0.0f), sf::Color(100, 100, 100, 100)));
+        grid.append(sf::Vertex(sf::Vector2f(static_cast<float>(x), static_cast<float>(mMap->getHeight())), sf::Color(100, 100, 100, 100)));
+    }
+
+    // Горизонтальные линии
+    for (int y = 0; y <= mMap->getHeight(); y++)
+    {
+        grid.append(sf::Vertex(sf::Vector2f(0.0f, static_cast<float>(y)), sf::Color(100, 100, 100, 100)));
+        grid.append(sf::Vertex(sf::Vector2f(static_cast<float>(mMap->getWidth()), static_cast<float>(y)), sf::Color(100, 100, 100, 100)));
+    }
+
+    mWindow.draw(grid);
 }
 
 void Game::render()
@@ -196,12 +271,24 @@ void Game::render()
 
     if (mDebug2DMode)
     {
-        render2D(); 
+        render2D();
     }
     else
     {
-        mRenderer->render(); 
+        mRenderer->render();
+
+         // Рисуем врагов в 3D режиме
+        if (mEnemyManager)
+        {
+            mEnemyManager->render3D(*mRenderer, *mPlayer, *mRayCalc);
+        }
     }
 
     mWindow.display();
+}
+
+void Game::toggleChunkDebugMode()
+{
+    mChunkDebugMode = !mChunkDebugMode;
+    std::cout << "Chunk debug mode: " << (mChunkDebugMode ? "ON" : "OFF") << std::endl;
 }

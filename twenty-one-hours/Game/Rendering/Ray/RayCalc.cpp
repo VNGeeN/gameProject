@@ -16,10 +16,18 @@ void RayCalc::calcRays(int rayCount)
     float posY = player.getY();
     float angle = player.getAngle();
 
+    if (rayCount <= 0)
+    {
+        return;
+    }
+
+    float rayStep = (rayCount == 1)
+                        ? 0.0f
+                        : (player.fov / static_cast<float>(rayCount - 1));
+
     for (int i = 0; i < rayCount; i++)
     {
-        float rayAngle = angle - (player.fov / 2.0f) +
-                         (player.fov * i / static_cast<float>(rayCount));
+        float rayAngle = angle - (player.fov / 2.0f) + (rayStep * i);
 
         Ray ray = calcSingleRay(rayAngle);
         rays.push_back(ray);

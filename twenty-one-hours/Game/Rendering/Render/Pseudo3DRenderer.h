@@ -44,7 +44,7 @@ private:
     Map &map;
     Player &player;
 
-    static constexpr float MAX_VIEW_DISTANCE = 20.0f;
+    static constexpr float DEFAULT_VIEW_DISTANCE = 20.0f;
 
     sf::Texture mFloorTexture;
     sf::Texture mCeilingTexture;
@@ -54,6 +54,7 @@ private:
     float calculateWallHeight(float distance) const;
     float calculateObjectScale(float distance);
     float calculateBrightness(float distance) const;
+    float getViewDistance() const;
 
     sf::Vector2f calculateScreenPosition(sf::Vector2f worldPos, float distance);
     sf::Color getWallColor(const RayCalc::Ray &ray);

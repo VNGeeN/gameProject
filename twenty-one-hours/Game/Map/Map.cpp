@@ -543,13 +543,18 @@ sf::Vector2f Map::findPlayerStartPosition() const
 
 bool Map::tryGetTransitionTarget(float x, float y, LevelType &outTarget) const
 {
-    int tileX = static_cast<int>(x);
-    int tileY = static_cast<int>(y);
+    sf::Vector2f ignoredSpawn;
+    return tryGetTransitionTarget(x, y, outTarget, ignoredSpawn);
+}
+
+bool Map::tryGetTransitionTarget(float x, float y, LevelType &outTarget, sf::Vector2f &outSpawn) const
+{
     for (const auto &transition : mTransitions)
     {
-        if (transition.tile.x == tileX && transition.tile.y == tileY)
+        if (transition.triggerArea.contains(x, y))
         {
             outTarget = transition.target;
+            outSpawn = transition.destinationSpawn;
             return true;
         }
     }
@@ -729,10 +734,42 @@ void Map::generateDungeonBaseGrid()
             }
         }
 
-        int portalX = rooms[bestRoomIndex].left + rooms[bestRoomIndex].width / 2;
-        int portalY = rooms[bestRoomIndex].top + rooms[bestRoomIndex].height / 2;
-        carveFloorRect(portalX - 1, portalY - 1, 3, 3);
-        addTransition(portalX, portalY, LevelType::OpenWorld);
+        int roomCenterX = rooms[bestRoomIndex].left + rooms[bestRoomIndex].width / 2;
+        int roomCenterY = rooms[bestRoomIndex].top + rooms[bestRoomIndex].height / 2;
+
+        sf::Vector2i triggerTile(roomCenterX, roomCenterY);
+        sf::Vector2f triggerSize(0.9f, 0.35f);
+
+        struct DoorCandidate
+        {
+            sf::Vector2i wallTile;
+            sf::Vector2i triggerTile;
+            sf::Vector2f triggerSize;
+        };
+
+        std::vector<DoorCandidate> candidates = {
+            {{rooms[bestRoomIndex].left - 1, roomCenterY}, {rooms[bestRoomIndex].left, roomCenterY}, sf::Vector2f(0.35f, 0.9f)},
+            {{rooms[bestRoomIndex].left + rooms[bestRoomIndex].width, roomCenterY}, {rooms[bestRoomIndex].left + rooms[bestRoomIndex].width - 1, roomCenterY}, sf::Vector2f(0.35f, 0.9f)},
+            {{roomCenterX, rooms[bestRoomIndex].top - 1}, {roomCenterX, rooms[bestRoomIndex].top}, sf::Vector2f(0.9f, 0.35f)},
+            {{roomCenterX, rooms[bestRoomIndex].top + rooms[bestRoomIndex].height}, {roomCenterX, rooms[bestRoomIndex].top + rooms[bestRoomIndex].height - 1}, sf::Vector2f(0.9f, 0.35f)}};
+
+        for (const auto &candidate : candidates)
+        {
+            if (candidate.wallTile.x > 0 && candidate.wallTile.x < mWidth - 1 &&
+                candidate.wallTile.y > 0 && candidate.wallTile.y < mHeight - 1 &&
+                candidate.triggerTile.x > 0 && candidate.triggerTile.x < mWidth - 1 &&
+                candidate.triggerTile.y > 0 && candidate.triggerTile.y < mHeight - 1 &&
+                mBaseGrid[candidate.wallTile.y][candidate.wallTile.x] == '#' &&
+                mBaseGrid[candidate.triggerTile.y][candidate.triggerTile.x] == '.')
+            {
+                triggerTile = candidate.triggerTile;
+                triggerSize = candidate.triggerSize;
+                break;
+            }
+        }
+
+        addTransition(triggerTile.x, triggerTile.y, LevelType::OpenWorld,
+                      sf::Vector2f(45.5f, 45.5f), triggerSize);
     }
 
     for (int y = 1; y < mHeight - 1; y++)
@@ -856,17 +893,26 @@ void Map::generateOpenWorldBaseGrid()
     for (const auto &point : portalPoints)
     {
         carveFloorRect(point.x - 2, point.y - 2, 5, 5);
-        addTransition(point.x, point.y, LevelType::Dungeon);
+        addTransition(point.x, point.y, LevelType::Dungeon, sf::Vector2f(mPlayerStart.x, mPlayerStart.y));
     }
 
     std::cout << "[Map] Open world generated: " << mWidth << "x" << mHeight << std::endl;
 }
 
-void Map::addTransition(int x, int y, LevelType target)
+void Map::addTransition(int x, int y, LevelType target, const sf::Vector2f &destinationSpawn,
+                        const sf::Vector2f &triggerSize)
 {
-    mTransitions.push_back({sf::Vector2i(x, y), target});
+    sf::FloatRect triggerArea(
+        static_cast<float>(x) + 0.5f - triggerSize.x * 0.5f,
+        static_cast<float>(y) + 0.5f - triggerSize.y * 0.5f,
+        triggerSize.x,
+        triggerSize.y);
+
+    mTransitions.push_back({triggerArea, destinationSpawn, target});
     std::cout << "[Map] Transition at (" << x << "," << y << ") -> "
-              << (target == LevelType::OpenWorld ? "OpenWorld" : "Dungeon") << std::endl;
+              << (target == LevelType::OpenWorld ? "OpenWorld" : "Dungeon")
+              << ", spawn (" << destinationSpawn.x << "," << destinationSpawn.y << ")"
+              << std::endl;
 }
 
 void Map::carveFloorRect(int x, int y, int w, int h)

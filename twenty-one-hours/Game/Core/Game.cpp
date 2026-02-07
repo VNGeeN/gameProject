@@ -336,7 +336,8 @@ void Game::render2D()
     for (const auto &transition : mMap->getTransitions())
     {
         sf::RectangleShape marker(sf::Vector2f(0.8f, 0.8f));
-        marker.setPosition(transition.tile.x + 0.1f, transition.tile.y + 0.1f);
+        marker.setPosition(transition.triggerArea.left, transition.triggerArea.top);
+        marker.setSize(sf::Vector2f(transition.triggerArea.width, transition.triggerArea.height));
         if (transition.target == Map::LevelType::OpenWorld)
         {
             marker.setFillColor(sf::Color(80, 200, 255));
@@ -915,7 +916,8 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
     }
 
     Map::LevelType target;
-    if (!mMap->tryGetTransitionTarget(mPlayer->getX(), mPlayer->getY(), target))
+    sf::Vector2f destinationSpawn;
+    if (!mMap->tryGetTransitionTarget(mPlayer->getX(), mPlayer->getY(), target, destinationSpawn))
     {
         return;
     }
@@ -925,7 +927,11 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
               << std::endl;
 
     mMap->regenerate(target);
-    sf::Vector2f startPos = mMap->findPlayerStartPosition();
+    sf::Vector2f startPos = destinationSpawn;
+    if (startPos.x <= 0.0f && startPos.y <= 0.0f)
+    {
+        startPos = mMap->findPlayerStartPosition();
+    }
     mPlayer->setPosition(startPos.x, startPos.y);
 
     mEnemyManager = std::make_unique<EnemyManager>(*mMap);

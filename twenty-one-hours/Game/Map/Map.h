@@ -60,11 +60,14 @@ public:
 
     struct Transition
     {
-        sf::Vector2i tile;
+        sf::FloatRect triggerArea;
+        sf::Vector2f destinationSpawn;
         LevelType target;
     };
 
     const std::vector<Transition> &getTransitions() const { return mTransitions; }
+
+    bool tryGetTransitionTarget(float x, float y, LevelType &outTarget, sf::Vector2f &outSpawn) const;
 
     void regenerate(LevelType levelType);
 
@@ -97,7 +100,8 @@ private:
     void initializeSurfaces();
     void generateDungeonBaseGrid();
     void generateOpenWorldBaseGrid();
-    void addTransition(int x, int y, LevelType target);
+    void addTransition(int x, int y, LevelType target, const sf::Vector2f &destinationSpawn,
+                       const sf::Vector2f &triggerSize = sf::Vector2f(0.9f, 0.9f));
     void carveFloorRect(int x, int y, int w, int h);
 
     bool inBounds(int x, int y) const

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <cmath>
+#include <algorithm>
 
 Pseudo3DRenderer::Pseudo3DRenderer(sf::RenderWindow &win, RayCalc &ray, Map &m, Player &p,
                                    const sf::Texture *enemyTex)
@@ -159,7 +160,7 @@ void Pseudo3DRenderer::renderFloor()
         float avgDistance = (distanceLeft + distanceRight) / 2.0f;
 
         // Уменьшаем затемнение для пола, чтобы он был светлее
-        float brightness = 1.0f / (1.0f + avgDistance * 0.1f);
+        float brightness = calculateBrightness(avgDistance);
         brightness = std::min(brightness, 0.8f); // Максимальная яркость 80%
 
         sf::Color color(255, 255, 255, 255);
@@ -244,7 +245,7 @@ void Pseudo3DRenderer::renderCeiling()
         float avgDistance = (distanceLeft + distanceRight) / 2.0f;
 
         // Для потолка делаем затемнение сильнее
-        float brightness = 1.0f / (1.0f + avgDistance * 0.15f);
+        float brightness = calculateBrightness(avgDistance * 1.15f);
         brightness = std::min(brightness, 0.7f); // Максимальная яркость 70%
 
         sf::Color color(255, 255, 255, 255);
@@ -330,7 +331,7 @@ void Pseudo3DRenderer::renderWalls()
 
     for (int i = 0; i < rays.size(); i++)
     {
-        if (rays[i].hitWall && rays[i].distance < MAX_VIEW_DISTANCE)
+        if (rays[i].hitWall && rays[i].distance < getViewDistance())
         {
             renderWallSlice(i, rays[i]);
         }
@@ -550,7 +551,39 @@ float Pseudo3DRenderer::calculateObjectScale(float distance)
 
 float Pseudo3DRenderer::calculateBrightness(float distance) const
 {
-    return 1.0f / (1.0f + distance * 0.4f);
+    float viewDistance = getViewDistance();
+    
+    // Нормализация расстояния в диапазон [0, 1]
+    float normalized = distance / (viewDistance > 1.0f ? viewDistance : 1.0f);
+    
+    // Ограничиваем нормализованное значение вручную (без std::clamp)
+    if (normalized < 0.0f) 
+        normalized = 0.0f;
+    else if (normalized > 1.0f) 
+        normalized = 1.0f;
+    
+    // Глобальная карта становится темнее вдали, чтобы скрыть дальнюю прорисовку
+    float fog = 1.0f - normalized;
+    
+    // Вычисляем яркость
+    float brightness = 0.2f + fog * fog * 0.8f;
+    
+    // Ограничиваем яркость вручную (без std::clamp)
+    if (brightness < 0.2f) 
+        brightness = 0.2f;
+    else if (brightness > 1.0f) 
+        brightness = 1.0f;
+    
+    return brightness;
+}
+
+float Pseudo3DRenderer::getViewDistance() const
+{
+    if (map.getLevelType() == Map::LevelType::OpenWorld)
+    {
+        return 14.0f;
+    }
+    return DEFAULT_VIEW_DISTANCE;
 }
 
 sf::Vector2f Pseudo3DRenderer::calculateScreenPosition(sf::Vector2f worldPos, float distance)

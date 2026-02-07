@@ -35,6 +35,13 @@ enum class FacingDirection
     RIGHT    // Смотрит вниз
 };
 
+enum class EnemyType
+{
+    Grunt,
+    Raider,
+    Boss
+};
+
 class Enemy
 {
 public:
@@ -48,7 +55,7 @@ public:
         float attackRange = 1.4f;
     };
 
-    Enemy(Map &map, float x, float y);
+    Enemy(Map &map, float x, float y, EnemyType type = EnemyType::Grunt);
 
     bool isVisible(const sf::Vector2f &playerPos, const RayCalc &rayCalc) const;
 
@@ -73,6 +80,9 @@ public:
     AnimationState getAnimationState() const { return mAnimationState; }
     const Stats &getStats() const { return mStats; }
 
+    EnemyType getType() const { return mType; }
+    bool isBoss() const { return mType == EnemyType::Boss; }
+
 private:
     float mVisibility = 1.0f;
     bool canSeePlayer(const sf::Vector2f &playerPos) const;
@@ -82,6 +92,8 @@ private:
     sf::Vector2f mPosition;
     bool mAlive = true;
     Stats mStats;
+    EnemyType mType = EnemyType::Grunt;
+    float mSpriteWorldHeight = 1.0f;
 
     // Параметры ИИ
     float mRadius = 0.25f;
@@ -107,4 +119,6 @@ private:
 
     sf::Vector2f mLastPosition;
     FacingDirection mFacingDirection = FacingDirection::FORWARD;
+
+    void applyTypeStats();
 };

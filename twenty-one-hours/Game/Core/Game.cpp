@@ -1,5 +1,6 @@
 #include "Game.h"
 #include <SFML/Window/Keyboard.hpp>
+#include <cmath>
 #include <algorithm>
 #include <iostream>
 
@@ -18,6 +19,23 @@ Game::Game()
 
     // Загружаем отдельную текстуру врага
     mEnemyTexture.loadFromFile("assets/textures/enemy.png");
+
+    mWeaponTextureLoaded = mWeaponTexture.loadFromFile("assets/textures/weapon_hands.png");
+    if (!mWeaponTextureLoaded)
+    {
+        std::cerr << "[Game] Failed to load weapon texture assets/textures/weapon_hands.png" << std::endl;
+    }
+    else
+    {
+        const int frameWidth = 256;
+        const int frameHeight = 128;
+        for (int col = 0; col < 4; col++)
+        {
+            mWeaponIdleFrames.emplace_back(col * frameWidth, 0, frameWidth, frameHeight);
+            mWeaponWalkFrames.emplace_back(col * frameWidth, frameHeight, frameWidth, frameHeight);
+            mWeaponShootFrames.emplace_back(col * frameWidth, frameHeight * 2, frameWidth, frameHeight);
+        }
+    }
 
     std::cout << "[Game] Step 2: Creating Map..." << std::endl;
     mMap = std::make_unique<Map>();
@@ -41,7 +59,8 @@ Game::Game()
     std::cout << "[Game] Step 6: Creating EnemyManager..." << std::endl;
     mEnemyManager = std::make_unique<EnemyManager>(*mMap);
 
-    mEnemyManager->spawnEnemies(5); // 5 врагов для началаf
+    mEnemyManager->spawnEnemies(6);
+    // mEnemyManager->spawnBoss();
 }
 
 void Game::run()
@@ -177,14 +196,18 @@ void Game::update(sf::Time deltaTime)
     float moveSpeed = 3.0f * deltaTime.asSeconds();
     float rotateSpeed = 2.0f * deltaTime.asSeconds();
 
+    bool isMoving = false;
+
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
     {
         mPlayer->moveForward(moveSpeed);
+        isMoving = true;
     }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
     {
         mPlayer->moveBackward(moveSpeed);
+        isMoving = true;
     }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
@@ -210,6 +233,24 @@ void Game::update(sf::Time deltaTime)
 
     mPlayer->updateWeaponCooldown(deltaTime);
 
+    updateWeaponAnimation(deltaTime, isMoving);
+
+    if (isMoving)
+    {
+        mStepIntervalTimer += deltaTime.asSeconds();
+        mWeaponBobPhase += deltaTime.asSeconds() * 10.0f;
+        if (mStepIntervalTimer >= 0.45f)
+        {
+            mStepIntervalTimer = 0.0f;
+            mStepShakeTimer = 0.12f;
+        }
+    }
+    else
+    {
+        mStepIntervalTimer = 0.0f;
+        mWeaponBobPhase = 0.0f;
+    }
+
     if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
     {
         if (mPlayer->tryFire(deltaTime))
@@ -230,13 +271,31 @@ void Game::update(sf::Time deltaTime)
             }
 
             mWeaponKick = 1.0f;
+            mWeaponShootTimer = 0.2f;
+            mShotShakeTimer = 0.18f;
         }
     }
 
     mWeaponKick = std::max(0.0f, mWeaponKick - deltaTime.asSeconds() * 5.0f);
     mHitMarkerTimer = std::max(0.0f, mHitMarkerTimer - deltaTime.asSeconds());
+    mWeaponShootTimer = std::max(0.0f, mWeaponShootTimer - deltaTime.asSeconds());
+    mShotShakeTimer = std::max(0.0f, mShotShakeTimer - deltaTime.asSeconds());
+    mStepShakeTimer = std::max(0.0f, mStepShakeTimer - deltaTime.asSeconds());
+
+    mShakePhase += deltaTime.asSeconds() * 30.0f;
+    float shotStrength = (mShotShakeTimer > 0.0f) ? (mShotShakeTimer / 0.18f) * 6.0f : 0.0f;
+    float stepStrength = (mStepShakeTimer > 0.0f) ? (mStepShakeTimer / 0.12f) * 3.0f : 0.0f;
+    float totalShake = shotStrength + stepStrength;
+    mShakeOffset.x = std::sin(mShakePhase * 2.1f) * totalShake;
+    mShakeOffset.y = std::cos(mShakePhase * 1.7f) * totalShake;
 
     handleLevelTransitions(deltaTime);
+
+    if (mEnemyManager && mEnemyManager->hasBoss() && !mEnemyManager->isBossAlive())
+    {
+        mState = GameState::Victory;
+        mWindow.setMouseCursorVisible(true);
+    }
 
     mRayCalc->calcRays(mWindow.getSize().x);
 }
@@ -346,12 +405,22 @@ void Game::render()
         return;
     }
 
+    if (mState == GameState::Victory)
+    {
+        renderVictoryScreen();
+        mWindow.display();
+        return;
+    }
+
     if (mDebug2DMode)
     {
         render2D();
     }
     else
     {
+        sf::View view = mWindow.getDefaultView();
+        view.move(mShakeOffset);
+        mWindow.setView(view);
         mRenderer->render();
 
         // Рисуем врагов в 3D режиме
@@ -364,6 +433,7 @@ void Game::render()
         renderWeapon();
         renderCrosshair();
         renderHitMarker();
+        mWindow.setView(mWindow.getDefaultView());
     }
 
     if (mState == GameState::Paused)
@@ -471,31 +541,103 @@ void Game::renderHud()
     }
 }
 
+void Game::updateWeaponAnimation(sf::Time deltaTime, bool isMoving)
+{
+    if (!mWeaponTextureLoaded)
+    {
+        return;
+    }
+
+    WeaponAnimState desiredState = isMoving ? WeaponAnimState::Walk : WeaponAnimState::Idle;
+    if (mWeaponShootTimer > 0.0f)
+    {
+        desiredState = WeaponAnimState::Shoot;
+    }
+
+    if (desiredState != mWeaponAnimState)
+    {
+        mWeaponAnimState = desiredState;
+        mWeaponFrameIndex = 0;
+        mWeaponFrameTimer = 0.0f;
+    }
+
+    const std::vector<sf::IntRect> *frames = &mWeaponIdleFrames;
+    float frameDuration = 0.12f;
+    if (mWeaponAnimState == WeaponAnimState::Walk && !mWeaponWalkFrames.empty())
+    {
+        frames = &mWeaponWalkFrames;
+        frameDuration = 0.08f;
+    }
+    else if (mWeaponAnimState == WeaponAnimState::Shoot && !mWeaponShootFrames.empty())
+    {
+        frames = &mWeaponShootFrames;
+        frameDuration = 0.06f;
+    }
+
+    if (frames->empty())
+    {
+        return;
+    }
+
+    mWeaponFrameTimer += deltaTime.asSeconds();
+    while (mWeaponFrameTimer >= frameDuration)
+    {
+        mWeaponFrameTimer -= frameDuration;
+        mWeaponFrameIndex = (mWeaponFrameIndex + 1) % frames->size();
+    }
+}
+
 void Game::renderWeapon()
 {
     sf::Vector2u size = mWindow.getSize();
     float kick = mWeaponKick * 10.0f;
 
-    sf::Vector2f basePos(size.x * 0.62f, size.y * 0.82f - kick);
+    float bobX = std::cos(mWeaponBobPhase * 0.7f) * 4.0f;
+    float bobY = std::sin(mWeaponBobPhase) * 5.0f;
+    sf::Vector2f basePos(size.x * 0.6f + bobX, size.y * 0.95f - kick + bobY);
 
-    sf::RectangleShape body(sf::Vector2f(220.0f, 70.0f));
-    body.setPosition(basePos);
-    body.setFillColor(sf::Color(35, 32, 30));
-    body.setOutlineThickness(2.0f);
-    body.setOutlineColor(sf::Color(160, 120, 60));
-    mWindow.draw(body);
+    if (!mWeaponTextureLoaded || mWeaponIdleFrames.empty())
+    {
+        sf::RectangleShape body(sf::Vector2f(220.0f, 70.0f));
+        body.setPosition(basePos);
+        body.setFillColor(sf::Color(35, 32, 30));
+        body.setOutlineThickness(2.0f);
+        body.setOutlineColor(sf::Color(160, 120, 60));
+        mWindow.draw(body);
 
-    sf::RectangleShape barrel(sf::Vector2f(120.0f, 18.0f));
-    barrel.setPosition(basePos.x + 180.0f, basePos.y + 22.0f);
-    barrel.setFillColor(sf::Color(55, 55, 60));
-    barrel.setOutlineThickness(2.0f);
-    barrel.setOutlineColor(sf::Color(120, 90, 45));
-    mWindow.draw(barrel);
+        sf::RectangleShape barrel(sf::Vector2f(120.0f, 18.0f));
+        barrel.setPosition(basePos.x + 180.0f, basePos.y + 22.0f);
+        barrel.setFillColor(sf::Color(55, 55, 60));
+        barrel.setOutlineThickness(2.0f);
+        barrel.setOutlineColor(sf::Color(120, 90, 45));
+        mWindow.draw(barrel);
 
-    sf::RectangleShape vent(sf::Vector2f(40.0f, 12.0f));
-    vent.setPosition(basePos.x + 24.0f, basePos.y + 10.0f);
-    vent.setFillColor(sf::Color(120, 20, 20));
-    mWindow.draw(vent);
+        sf::RectangleShape vent(sf::Vector2f(40.0f, 12.0f));
+        vent.setPosition(basePos.x + 24.0f, basePos.y + 10.0f);
+        vent.setFillColor(sf::Color(120, 20, 20));
+        mWindow.draw(vent);
+        return;
+    }
+
+    const std::vector<sf::IntRect> *frames = &mWeaponIdleFrames;
+    if (mWeaponAnimState == WeaponAnimState::Walk && !mWeaponWalkFrames.empty())
+    {
+        frames = &mWeaponWalkFrames;
+    }
+    else if (mWeaponAnimState == WeaponAnimState::Shoot && !mWeaponShootFrames.empty())
+    {
+        frames = &mWeaponShootFrames;
+    }
+
+    std::size_t frameIndex = mWeaponFrameIndex % frames->size();
+    sf::Sprite sprite(mWeaponTexture);
+    sprite.setTextureRect((*frames)[frameIndex]);
+    sprite.setOrigin((*frames)[frameIndex].width / 2.0f, (*frames)[frameIndex].height);
+
+    float scale = 0.9f * (static_cast<float>(size.x) / 800.0f);
+    sprite.setScale(scale, scale);
+    sprite.setPosition(basePos);
+    mWindow.draw(sprite);
 }
 
 void Game::renderCrosshair()
@@ -589,6 +731,17 @@ void Game::handleMenuInput(const sf::Event &event)
         return;
     }
 
+    if (mState == GameState::Victory)
+    {
+        if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Return)
+        {
+            mState = GameState::MainMenu;
+            mMainMenuIndex = 0;
+            mWindow.setMouseCursorVisible(true);
+        }
+        return;
+    }
+
     if (mState == GameState::Paused)
     {
         const int optionCount = 2;
@@ -670,6 +823,38 @@ void Game::renderMainMenu()
     mWindow.draw(hint);
 }
 
+void Game::renderVictoryScreen()
+{
+    sf::Vector2u size = mWindow.getSize();
+    sf::RectangleShape background(sf::Vector2f(static_cast<float>(size.x), static_cast<float>(size.y)));
+    background.setFillColor(sf::Color(10, 10, 12));
+    mWindow.draw(background);
+
+    sf::Text title;
+    title.setFont(mUiFont);
+    title.setString(L"Победа!");
+    title.setCharacterSize(48);
+    title.setFillColor(sf::Color(220, 200, 140));
+    title.setPosition(size.x * 0.5f - title.getGlobalBounds().width * 0.5f, 120.0f);
+    mWindow.draw(title);
+
+    sf::Text subtitle;
+    subtitle.setFont(mUiFont);
+    subtitle.setString(L"Босс повержен, уровень завершен");
+    subtitle.setCharacterSize(22);
+    subtitle.setFillColor(sf::Color(150, 140, 120));
+    subtitle.setPosition(size.x * 0.5f - subtitle.getGlobalBounds().width * 0.5f, 190.0f);
+    mWindow.draw(subtitle);
+
+    sf::Text hint;
+    hint.setFont(mUiFont);
+    hint.setString(L"Нажмите Enter, чтобы вернуться в меню");
+    hint.setCharacterSize(18);
+    hint.setFillColor(sf::Color(120, 120, 120));
+    hint.setPosition(size.x * 0.5f - hint.getGlobalBounds().width * 0.5f, size.y - 80.0f);
+    mWindow.draw(hint);
+}
+
 void Game::renderPauseMenu()
 {
     sf::Vector2u size = mWindow.getSize();
@@ -744,7 +929,8 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
     mPlayer->setPosition(startPos.x, startPos.y);
 
     mEnemyManager = std::make_unique<EnemyManager>(*mMap);
-    mEnemyManager->spawnEnemies(5);
+    mEnemyManager->spawnEnemies(6);
+    // mEnemyManager->spawnBoss();
 
     mTransitionCooldown = 1.0f;
 }

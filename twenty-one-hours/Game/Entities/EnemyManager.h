@@ -16,6 +16,10 @@ public:
 
     void addEnemy(std::unique_ptr<Enemy> enemy);
     void spawnEnemies(int count);
+    void spawnBoss();
+
+    bool hasBoss() const;
+    bool isBossAlive() const;
 
     void update(sf::Time deltaTime, Player &player);
     void render2D(sf::RenderTarget &target) const;
@@ -29,4 +33,6 @@ public:
 private:
     Map &mMap;
     std::vector<std::unique_ptr<Enemy>> mEnemies;
+
+    bool mBossSpawned = false;
 };

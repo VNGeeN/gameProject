@@ -622,7 +622,9 @@ void Pseudo3DRenderer::renderSprite(const sf::Vector2f &spritePos,
                                     const sf::Texture *texture,
                                     const sf::IntRect &region,
                                     float rotation,
-                                    float visibility)
+                                    float visibility,
+                                    float worldHeight,
+                                    const sf::Color &tint)
 {
     if (!texture || visibility <= 0.01f)
         return;
@@ -655,9 +657,8 @@ void Pseudo3DRenderer::renderSprite(const sf::Vector2f &spritePos,
     float distanceToProjection = screenWidth / (2.0f * tan(player.fov / 2.0f));
 
     float cameraHeight = 0.5f;
-    float spriteWorldHeight = 1.0f;
 
-    float spriteScreenHeight = (spriteWorldHeight * distanceToProjection) / distance;
+    float spriteScreenHeight = (worldHeight * distanceToProjection) / distance;
     float screenY = horizon + (cameraHeight * distanceToProjection) / distance;
 
     float minHeight = 24.0f;
@@ -680,11 +681,11 @@ void Pseudo3DRenderer::renderSprite(const sf::Vector2f &spritePos,
     if (brightness < 0.4f)
         brightness = 0.4f;
 
-    sf::Color color(255, 255, 255);
+    sf::Color color = tint;
     color.r = static_cast<sf::Uint8>(color.r * brightness);
     color.g = static_cast<sf::Uint8>(color.g * brightness);
     color.b = static_cast<sf::Uint8>(color.b * brightness);
-    color.a = static_cast<sf::Uint8>(255 * visibility);
+    color.a = static_cast<sf::Uint8>(color.a * visibility);
 
     sprite.setColor(color);
 

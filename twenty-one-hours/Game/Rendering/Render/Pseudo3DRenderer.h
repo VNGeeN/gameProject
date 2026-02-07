@@ -32,7 +32,9 @@ public:
                       const sf::Texture *texture,
                       const sf::IntRect &region,
                       float rotation = 0.0f,
-                      float visibility = 0.0f);
+                      float visibility = 0.0f,
+                      float worldHeight = 1.0f,
+                      const sf::Color &tint = sf::Color::White);
 
     const sf::Texture *getEnemyTexture() const { return mEnemyTexture; }
 

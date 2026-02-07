@@ -6,9 +6,50 @@
 #include <algorithm>
 #include "../Player/Player.h"
 
-Enemy::Enemy(Map &map, float x, float y)
-    : mMap(map), mPosition(x, y), mAttackCooldown(sf::seconds(1.0f)),
-      mAttackTimer(sf::Time::Zero), mStateTimer(sf::Time::Zero) {}
+Enemy::Enemy(Map &map, float x, float y, EnemyType type)
+    : mMap(map), mPosition(x, y), mType(type), mAttackCooldown(sf::seconds(1.0f)),
+      mAttackTimer(sf::Time::Zero), mStateTimer(sf::Time::Zero)
+{
+    applyTypeStats();
+}
+
+void Enemy::applyTypeStats()
+{
+    switch (mType)
+    {
+    case EnemyType::Grunt:
+        mStats = Stats{};
+        mSpeed = 0.8f;
+        mDetectionDistance = 12.0f;
+        mChaseDistance = 8.0f;
+        mSpriteWorldHeight = 1.0f;
+        break;
+    case EnemyType::Raider:
+        mStats.maxHealth = 45;
+        mStats.health = 45;
+        mStats.maxArmor = 5;
+        mStats.armor = 5;
+        mStats.damage = 6;
+        mStats.attackRange = 1.2f;
+        mSpeed = 1.2f;
+        mDetectionDistance = 14.0f;
+        mChaseDistance = 10.0f;
+        mSpriteWorldHeight = 0.9f;
+        break;
+    case EnemyType::Boss:
+        mStats.maxHealth = 220;
+        mStats.health = 220;
+        mStats.maxArmor = 50;
+        mStats.armor = 50;
+        mStats.damage = 18;
+        mStats.attackRange = 2.0f;
+        mSpeed = 0.6f;
+        mDetectionDistance = 16.0f;
+        mChaseDistance = 12.0f;
+        mSpriteWorldHeight = 1.6f;
+        break;
+    }
+}
 
 bool Enemy::canSeePlayer(const sf::Vector2f &playerPos) const
 {
@@ -449,7 +490,17 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
     region.width = 128;
     region.height = 128;
 
-    renderer.renderSprite(mPosition, playerPos, enemyTex, region, 0.0f, mVisibility);
+    sf::Color tint = sf::Color::White;
+    if (mType == EnemyType::Raider)
+    {
+        tint = sf::Color(140, 220, 140);
+    }
+    else if (mType == EnemyType::Boss)
+    {
+        tint = sf::Color(220, 120, 120);
+    }
+
+    renderer.renderSprite(mPosition, playerPos, enemyTex, region, 0.0f, mVisibility, mSpriteWorldHeight, tint);
 }
 
 void Enemy::setAnimationState(AnimationState state)

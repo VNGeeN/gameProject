@@ -22,6 +22,7 @@ void EnemyManager::spawnEnemies(int count)
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> xDist(1, mMap.getWidth() - 2);
     std::uniform_int_distribution<> yDist(1, mMap.getHeight() - 2);
+    std::uniform_real_distribution<float> typeRoll(0.0f, 1.0f);
 
     for (int i = 0; i < count; i++)
     {
@@ -53,10 +54,18 @@ void EnemyManager::spawnEnemies(int count)
 
                 if (!tooClose)
                 {
+                    EnemyType type = EnemyType::Grunt;
+                    float roll = typeRoll(gen);
+                    if (roll > 0.65f)
+                    {
+                        type = EnemyType::Raider;
+                    }
+
                     mEnemies.push_back(std::make_unique<Enemy>(
                         mMap,
                         static_cast<float>(x) + 0.5f,
-                        static_cast<float>(y) + 0.5f));
+                        static_cast<float>(y) + 0.5f,
+                        type));
                     spawned = true;
                     std::cout << "[EnemyManager] Spawned enemy at ("
                               << x << ", " << y << ")" << std::endl;
@@ -65,6 +74,87 @@ void EnemyManager::spawnEnemies(int count)
             attempts++;
         }
     }
+}
+
+void EnemyManager::spawnBoss()
+{
+    if (mBossSpawned)
+    {
+        return;
+    }
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> xDist(1, mMap.getWidth() - 2);
+    std::uniform_int_distribution<> yDist(1, mMap.getHeight() - 2);
+
+    int attempts = 0;
+    while (attempts < 100)
+    {
+        int x = xDist(gen);
+        int y = yDist(gen);
+
+        if (!mMap.isWall(static_cast<float>(x) + 0.5f,
+                         static_cast<float>(y) + 0.5f))
+        {
+            bool tooClose = false;
+            for (const auto &enemy : mEnemies)
+            {
+                float dx = enemy->getPosition().x - (x + 0.5f);
+                float dy = enemy->getPosition().y - (y + 0.5f);
+                if (dx * dx + dy * dy < 9.0f)
+                {
+                    tooClose = true;
+                    break;
+                }
+            }
+
+            if (!tooClose)
+            {
+                mEnemies.push_back(std::make_unique<Enemy>(
+                    mMap,
+                    static_cast<float>(x) + 0.5f,
+                    static_cast<float>(y) + 0.5f,
+                    EnemyType::Boss));
+                mBossSpawned = true;
+                std::cout << "[EnemyManager] Spawned boss at ("
+                          << x << ", " << y << ")" << std::endl;
+                return;
+            }
+        }
+        attempts++;
+    }
+}
+
+bool EnemyManager::hasBoss() const
+{
+    if (mBossSpawned)
+    {
+        return true;
+    }
+
+    for (const auto &enemy : mEnemies)
+    {
+        if (enemy->isBoss())
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool EnemyManager::isBossAlive() const
+{
+    for (const auto &enemy : mEnemies)
+    {
+        if (enemy->isBoss() && enemy->isAlive())
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void EnemyManager::update(sf::Time deltaTime, Player &player)

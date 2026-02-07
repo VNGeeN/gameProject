@@ -893,7 +893,7 @@ void Map::generateOpenWorldBaseGrid()
     for (const auto &point : portalPoints)
     {
         carveFloorRect(point.x - 2, point.y - 2, 5, 5);
-        addTransition(point.x, point.y, LevelType::Dungeon, sf::Vector2f(mPlayerStart.x, mPlayerStart.y));
+        addTransition(point.x, point.y, LevelType::Dungeon, sf::Vector2f(-1.0f, -1.0f));
     }
 
     std::cout << "[Map] Open world generated: " << mWidth << "x" << mHeight << std::endl;

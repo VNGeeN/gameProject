@@ -928,10 +928,47 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
 
     mMap->regenerate(target);
     sf::Vector2f startPos = destinationSpawn;
-    if (startPos.x <= 0.0f && startPos.y <= 0.0f)
+    bool invalidSpawn =
+        startPos.x < 1.0f || startPos.y < 1.0f ||
+        startPos.x >= static_cast<float>(mMap->getWidth() - 1) ||
+        startPos.y >= static_cast<float>(mMap->getHeight() - 1) ||
+        mMap->isWall(startPos.x, startPos.y);
+
+    if (invalidSpawn)
     {
         startPos = mMap->findPlayerStartPosition();
     }
+
+    // Дополнительная защита: если старт в стене (например, после генерации),
+    // ищем ближайшую свободную клетку вокруг точки старта.
+    if (mMap->isWall(startPos.x, startPos.y))
+    {
+        bool found = false;
+        int baseX = static_cast<int>(startPos.x);
+        int baseY = static_cast<int>(startPos.y);
+        for (int radius = 1; radius <= 6 && !found; ++radius)
+        {
+            for (int dy = -radius; dy <= radius && !found; ++dy)
+            {
+                for (int dx = -radius; dx <= radius && !found; ++dx)
+                {
+                    int tx = baseX + dx;
+                    int ty = baseY + dy;
+                    if (tx <= 0 || ty <= 0 || tx >= mMap->getWidth() - 1 || ty >= mMap->getHeight() - 1)
+                        continue;
+
+                    float sx = static_cast<float>(tx) + 0.5f;
+                    float sy = static_cast<float>(ty) + 0.5f;
+                    if (!mMap->isWall(sx, sy))
+                    {
+                        startPos = sf::Vector2f(sx, sy);
+                        found = true;
+                    }
+                }
+            }
+        }
+    }
+    
     mPlayer->setPosition(startPos.x, startPos.y);
 
     mEnemyManager = std::make_unique<EnemyManager>(*mMap);

@@ -71,6 +71,22 @@ public:
 
     void regenerate(LevelType levelType);
 
+    struct Door
+    {
+        sf::FloatRect area;
+        LevelType target;
+    };
+
+    struct AmmoPickup
+    {
+        sf::Vector2f position;
+        bool collected = false;
+    };
+
+    const std::vector<Door> &getDoors() const { return mDoors; }
+    const std::vector<AmmoPickup> &getAmmoPickups() const { return mAmmoPickups; }
+    bool tryCollectAmmoPickup(float x, float y);
+
 private:
     struct Cell
     {
@@ -103,6 +119,7 @@ private:
     void addTransition(int x, int y, LevelType target, const sf::Vector2f &destinationSpawn,
                        const sf::Vector2f &triggerSize = sf::Vector2f(0.9f, 0.9f));
     void carveFloorRect(int x, int y, int w, int h);
+    void spawnAmmoPickups(int count);
 
     bool inBounds(int x, int y) const
     {
@@ -119,6 +136,8 @@ private:
 
     std::unique_ptr<ChunkManager> mChunkManager;
     std::vector<Transition> mTransitions;
+    std::vector<Door> mDoors;
+    std::vector<AmmoPickup> mAmmoPickups;
 
     void createRoom(int x, int y, int w, int h);
     void createHorizontalCorridor(int x1, int x2, int y, int width = 2);

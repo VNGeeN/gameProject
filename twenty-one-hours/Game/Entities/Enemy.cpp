@@ -186,10 +186,10 @@ void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float play
     // Плавное изменение видимости
     // УБИРАЕМ ПОВТОРНОЕ ОБЪЯВЛЕНИЕ - используем уже вычисленные значения
     // В пределах поля зрения?
-    bool inFOV = (angleDiff < ((M_PI / 3.0f) / 2.0f));
+    bool hasLineOfSight = canSeePlayer(playerPos);
 
-    // Плавное изменение видимости
-    float targetVisibility = inFOV ? 1.0f : 0.0f;
+    // Не прячем врага по углу экрана — видимость зависит только от препятствий.
+    float targetVisibility = hasLineOfSight ? 1.0f : 0.75f;
     float visibilitySpeed = 3.0f; // Скорость появления/исчезания
 
     if (mVisibility < targetVisibility)

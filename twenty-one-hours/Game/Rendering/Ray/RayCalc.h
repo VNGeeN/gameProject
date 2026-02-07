@@ -39,5 +39,5 @@ private:
     Player &player;
     Map &map;
 
-    static constexpr float MAX_VIEW_DISTANCE = 20.0f;
+    static constexpr float MAX_VIEW_DISTANCE = 55.0f;
 };

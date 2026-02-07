@@ -59,7 +59,8 @@ Game::Game()
     std::cout << "[Game] Step 6: Creating EnemyManager..." << std::endl;
     mEnemyManager = std::make_unique<EnemyManager>(*mMap);
 
-    mEnemyManager->spawnEnemies(6);
+    int initialEnemyCount = (mMap->getLevelType() == Map::LevelType::OpenWorld) ? 100 : 50;
+    mEnemyManager->spawnEnemies(initialEnemyCount);
     // mEnemyManager->spawnBoss();
 }
 
@@ -120,6 +121,26 @@ void Game::processEvents()
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::F3)
         {
             toggleChunkDebugMode();
+        }
+
+        if (event.type == sf::Event::KeyPressed && mState == GameState::Playing)
+        {
+            if (event.key.code == sf::Keyboard::Num1)
+            {
+                mPlayer->switchWeapon(0);
+            }
+            else if (event.key.code == sf::Keyboard::Num2)
+            {
+                mPlayer->switchWeapon(1);
+            }
+            else if (event.key.code == sf::Keyboard::Num3)
+            {
+                mPlayer->switchWeapon(2);
+            }
+            else if (event.key.code == sf::Keyboard::R)
+            {
+                mPlayer->reloadActiveWeapon();
+            }
         }
 
         if (event.type == sf::Event::MouseButtonPressed)
@@ -233,6 +254,12 @@ void Game::update(sf::Time deltaTime)
 
     mPlayer->updateWeaponCooldown(deltaTime);
 
+    if (mMap->tryCollectAmmoPickup(mPlayer->getX(), mPlayer->getY()))
+    {
+        mPlayer->addAmmoToAllWeapons();
+        mPickupMessageTimer = 1.2f;
+    }
+
     updateWeaponAnimation(deltaTime, isMoving);
 
     if (isMoving)
@@ -278,6 +305,7 @@ void Game::update(sf::Time deltaTime)
 
     mWeaponKick = std::max(0.0f, mWeaponKick - deltaTime.asSeconds() * 5.0f);
     mHitMarkerTimer = std::max(0.0f, mHitMarkerTimer - deltaTime.asSeconds());
+    mPickupMessageTimer = std::max(0.0f, mPickupMessageTimer - deltaTime.asSeconds());
     mWeaponShootTimer = std::max(0.0f, mWeaponShootTimer - deltaTime.asSeconds());
     mShotShakeTimer = std::max(0.0f, mShotShakeTimer - deltaTime.asSeconds());
     mStepShakeTimer = std::max(0.0f, mStepShakeTimer - deltaTime.asSeconds());
@@ -365,6 +393,8 @@ void Game::render2D()
     line[1].color = sf::Color::Red;
     mWindow.draw(line);
 
+    renderWorldInteractions2D();
+
     if (mEnemyManager)
     {
         mEnemyManager->render2D(mWindow);
@@ -422,6 +452,7 @@ void Game::render()
         sf::View view = mWindow.getDefaultView();
         view.move(mShakeOffset);
         mWindow.setView(view);
+        mRenderer->setCeilingEnabled(mMap->getLevelType() == Map::LevelType::Dungeon);
         mRenderer->render();
 
         // Рисуем врагов в 3D режиме
@@ -507,40 +538,29 @@ void Game::renderHud()
     seal.setPosition(panelPos.x + panelSize.x - 28.0f, panelPos.y + panelSize.y - 22.0f);
     mWindow.draw(seal);
 
-    if (mEnemyManager)
+    sf::Text ammoText;
+    ammoText.setFont(mUiFont);
+    ammoText.setCharacterSize(16);
+    ammoText.setFillColor(sf::Color(220, 210, 180));
+    ammoText.setPosition(panelPos.x + 12.0f, panelPos.y + 74.0f);
+    ammoText.setString(std::string(mPlayer->getCurrentWeaponName()) + " " +
+                       std::to_string(weapon.ammoInMagazine) + "/" +
+                       std::to_string(weapon.magazineSize) +
+                       " | reserve: " + std::to_string(weapon.reserveAmmo));
+    mWindow.draw(ammoText);
+
+    if (mPickupMessageTimer > 0.0f)
     {
-        Enemy *target = mEnemyManager->findTargetInSight(*mPlayer, *mRayCalc,
-                                                         weapon.range, weapon.aimCone);
-        if (target)
-        {
-            const auto &enemyStats = target->getStats();
-            sf::Vector2f targetPanelSize(220.0f, 32.0f);
-            sf::Vector2f targetPanelPos((size.x - targetPanelSize.x) * 0.5f, 24.0f);
-
-            sf::RectangleShape targetPanel(targetPanelSize);
-            targetPanel.setPosition(targetPanelPos);
-            targetPanel.setFillColor(sf::Color(15, 10, 10, 200));
-            targetPanel.setOutlineThickness(2.0f);
-            targetPanel.setOutlineColor(trimColor);
-            mWindow.draw(targetPanel);
-
-            float enemyRatio = static_cast<float>(enemyStats.health) /
-                               static_cast<float>(enemyStats.maxHealth);
-            sf::RectangleShape enemyBar(sf::Vector2f((targetPanelSize.x - 12.0f) * enemyRatio, 10.0f));
-            enemyBar.setPosition(targetPanelPos.x + 6.0f, targetPanelPos.y + 6.0f);
-            enemyBar.setFillColor(healthColor);
-            mWindow.draw(enemyBar);
-
-            float enemyArmorRatio = static_cast<float>(enemyStats.armor) /
-                                    static_cast<float>(enemyStats.maxArmor);
-            enemyArmorRatio = std::min(enemyArmorRatio, 1.0f);
-            sf::RectangleShape enemyArmor(sf::Vector2f((targetPanelSize.x - 12.0f) * enemyArmorRatio, 6.0f));
-            enemyArmor.setPosition(targetPanelPos.x + 6.0f, targetPanelPos.y + 18.0f);
-            enemyArmor.setFillColor(armorColor);
-            mWindow.draw(enemyArmor);
-        }
+        sf::Text pickupText;
+        pickupText.setFont(mUiFont);
+        pickupText.setCharacterSize(18);
+        pickupText.setFillColor(sf::Color(120, 210, 120));
+        pickupText.setString(L"Патроны подобраны");
+        pickupText.setPosition(size.x * 0.5f - 90.0f, size.y - 130.0f);
+        mWindow.draw(pickupText);
     }
 }
+
 
 void Game::updateWeaponAnimation(sf::Time deltaTime, bool isMoving)
 {
@@ -824,6 +844,38 @@ void Game::renderMainMenu()
     mWindow.draw(hint);
 }
 
+void Game::renderWorldInteractions2D()
+{
+    for (const auto &pickup : mMap->getAmmoPickups())
+    {
+        if (pickup.collected)
+        {
+            continue;
+        }
+
+        sf::CircleShape ammo(0.16f);
+        ammo.setOrigin(0.16f, 0.16f);
+        ammo.setPosition(pickup.position);
+        ammo.setFillColor(sf::Color(240, 210, 90));
+        ammo.setOutlineThickness(0.03f);
+        ammo.setOutlineColor(sf::Color::Black);
+        mWindow.draw(ammo);
+    }
+
+    for (const auto &door : mMap->getDoors())
+    {
+        sf::RectangleShape doorMarker;
+        doorMarker.setPosition(door.area.left, door.area.top);
+        doorMarker.setSize(sf::Vector2f(door.area.width, door.area.height));
+        doorMarker.setFillColor(sf::Color::Transparent);
+        doorMarker.setOutlineThickness(0.03f);
+        doorMarker.setOutlineColor(door.target == Map::LevelType::OpenWorld
+                                       ? sf::Color(90, 220, 255)
+                                       : sf::Color(220, 120, 255));
+        mWindow.draw(doorMarker);
+    }
+}
+
 void Game::renderVictoryScreen()
 {
     sf::Vector2u size = mWindow.getSize();
@@ -927,9 +979,10 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
               << std::endl;
 
     mMap->regenerate(target);
-    
+
     constexpr float spawnClearanceRadius = 0.28f;
-    auto isValidSpawn = [&](const sf::Vector2f &pos) {
+    auto isValidSpawn = [&](const sf::Vector2f &pos)
+    {
         return pos.x >= 1.0f && pos.y >= 1.0f &&
                pos.x < static_cast<float>(mMap->getWidth() - 1) &&
                pos.y < static_cast<float>(mMap->getHeight() - 1) &&
@@ -975,7 +1028,8 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
     mPlayer->setPosition(startPos.x, startPos.y);
 
     mEnemyManager = std::make_unique<EnemyManager>(*mMap);
-    mEnemyManager->spawnEnemies(6);
+    int transitionEnemyCount = (target == Map::LevelType::OpenWorld) ? 100 : 50;
+    mEnemyManager->spawnEnemies(transitionEnemyCount);
     // mEnemyManager->spawnBoss();
 
     mTransitionCooldown = 1.0f;

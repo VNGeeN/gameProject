@@ -2,6 +2,8 @@
 
 #include <SFML/Graphics.hpp>
 #include "../Map/Map.h"
+#include <array>
+#include <string>
 
 class Player
 {
@@ -19,10 +21,23 @@ public:
 
     struct WeaponStats
     {
+        std::string name;
         int damage = 18;
         float range = 14.0f;
         float fireRate = 0.35f;
         float aimCone = 0.08f;
+        int magazineSize = 12;
+        int ammoInMagazine = 12;
+        int reserveAmmo = 36;
+        int ammoPerPickup = 12;
+    };
+
+    enum class WeaponType
+    {
+        Pistol = 0,
+        Rifle = 1,
+        Shotgun = 2,
+        Count
     };
 
     Player(Map &map);
@@ -41,13 +56,18 @@ public:
     void moveBackward(float distance);
     void rotate(float angle);
 
-    const Stats& getStats() const { return mStats; }
-    const WeaponStats& getWeaponStats() const { return mWeapon; }
+    const Stats &getStats() const { return mStats; }
+    const WeaponStats &getWeaponStats() const { return mWeapons[static_cast<std::size_t>(mCurrentWeapon)]; }
+    WeaponType getCurrentWeaponType() const { return mCurrentWeapon; }
+    const char *getCurrentWeaponName() const { return getWeaponStats().name.c_str(); }
     bool isAlive() const { return mStats.health > 0; }
     void takeDamage(int amount);
 
     bool tryFire(sf::Time deltaTime);
     void updateWeaponCooldown(sf::Time deltaTime);
+    bool reloadActiveWeapon();
+    void addAmmoToAllWeapons();
+    bool switchWeapon(int weaponIndex);
 
     float fov;
 
@@ -57,6 +77,7 @@ private:
     Map &map;
 
     Stats mStats;
-    WeaponStats mWeapon;
+    std::array<WeaponStats, static_cast<std::size_t>(WeaponType::Count)> mWeapons;
+    WeaponType mCurrentWeapon = WeaponType::Pistol;
     float mWeaponCooldown = 0.0f;
 };

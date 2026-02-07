@@ -61,7 +61,10 @@ void Pseudo3DRenderer::render()
     int horizon = window.getSize().y / 2;
     mSkyboxRenderer.render(player.getAngle(), horizon);
 
-    renderCeiling();
+    if (mCeilingEnabled)
+    {
+        renderCeiling();
+    }
     renderFloor();
     renderWalls();
     // renderObjects();

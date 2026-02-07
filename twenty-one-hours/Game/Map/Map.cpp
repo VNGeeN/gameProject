@@ -13,6 +13,8 @@ Map::Map() : mCollisionLayer(10, 10)
 void Map::initializeBaseGrid()
 {
     mTransitions.clear();
+    mDoors.clear();
+    mAmmoPickups.clear();
 
     if (mLevelType == LevelType::OpenWorld)
     {
@@ -462,6 +464,15 @@ void Map::regenerate(LevelType levelType)
     initializeBaseGrid();
     initializeCollisionLayer();
     initializeSurfaces();
+
+    if (mLevelType == LevelType::OpenWorld)
+    {
+        spawnAmmoPickups(26);
+    }
+    else
+    {
+        spawnAmmoPickups(14);
+    }
 }
 
 void Map::generateDungeonBaseGrid()
@@ -808,6 +819,7 @@ void Map::addTransition(int x, int y, LevelType target, const sf::Vector2f &dest
         triggerSize.y);
 
     mTransitions.push_back({triggerArea, destinationSpawn, target});
+    mDoors.push_back({triggerArea, target});
     std::cout << "[Map] Transition at (" << x << "," << y << ") -> "
               << (target == LevelType::OpenWorld ? "OpenWorld" : "Dungeon")
               << ", spawn (" << destinationSpawn.x << "," << destinationSpawn.y << ")"
@@ -827,5 +839,77 @@ void Map::carveFloorRect(int x, int y, int w, int h)
                 mBaseGrid[py][px] = '.';
             }
         }
+    }
+}
+
+bool Map::tryCollectAmmoPickup(float x, float y)
+{
+    for (auto &pickup : mAmmoPickups)
+    {
+        if (pickup.collected)
+        {
+            continue;
+        }
+
+        float dx = pickup.position.x - x;
+        float dy = pickup.position.y - y;
+        if (dx * dx + dy * dy <= 0.45f * 0.45f)
+        {
+            pickup.collected = true;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void Map::spawnAmmoPickups(int count)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> xDist(1, mWidth - 2);
+    std::uniform_int_distribution<> yDist(1, mHeight - 2);
+
+    int spawned = 0;
+    int attempts = 0;
+    const int maxAttempts = count * 25;
+
+    while (spawned < count && attempts < maxAttempts)
+    {
+        attempts++;
+        float px = static_cast<float>(xDist(gen)) + 0.5f;
+        float py = static_cast<float>(yDist(gen)) + 0.5f;
+
+        if (isWall(px, py))
+        {
+            continue;
+        }
+
+        float dxStart = px - mPlayerStart.x;
+        float dyStart = py - mPlayerStart.y;
+        if (dxStart * dxStart + dyStart * dyStart < 9.0f)
+        {
+            continue;
+        }
+
+        bool overlaps = false;
+        for (const auto &pickup : mAmmoPickups)
+        {
+            float dx = pickup.position.x - px;
+            float dy = pickup.position.y - py;
+            if (dx * dx + dy * dy < 1.2f * 1.2f)
+            {
+                overlaps = true;
+                break;
+            }
+        }
+
+        if (overlaps)
+        {
+            continue;
+        }
+
+        mAmmoPickups.push_back({sf::Vector2f(px, py), false});
+        spawned++;
     }
 }

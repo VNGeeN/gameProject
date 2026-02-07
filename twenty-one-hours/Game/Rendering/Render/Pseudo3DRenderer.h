@@ -19,6 +19,7 @@ public:
     void renderWallSlice(int column, const RayCalc::Ray &ray);
     void renderFloorAndCeiling();
     void renderObjects();
+    void setCeilingEnabled(bool enabled) { mCeilingEnabled = enabled; }
 
     void setDebugMode(bool debug) { mDebugMode = debug; }
     bool getDebugMode() const { return mDebugMode; }
@@ -75,4 +76,6 @@ private:
     const sf::Texture *mEnemyTexture = nullptr;
 
     SkyboxRenderer mSkyboxRenderer;
+
+    bool mCeilingEnabled = true;
 };

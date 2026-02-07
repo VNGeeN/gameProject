@@ -241,11 +241,8 @@ ObjectVisibilityData RayCalc::getObjectVisibility(GameObject *obj) const
     if (rawRayDistance < distance - 0.1f)
         return data;
 
-    if (distance < 5.0f)
-    {
-        data.isVisible = true;
-        data.distance = distance;
-    }
+    data.isVisible = (distance <= MAX_VIEW_DISTANCE);
+    data.distance = distance;
 
     return data;
 }

@@ -26,6 +26,7 @@ private:
     void renderWeapon();
     void renderCrosshair();
     void renderHitMarker();
+    void renderWorldInteractions2D();
     void renderMainMenu();
     void renderPauseMenu();
     void renderVictoryScreen();
@@ -41,12 +42,12 @@ private:
     };
 
     sf::RenderWindow mWindow;
-    
+
     std::unique_ptr<Map> mMap;
     std::unique_ptr<Player> mPlayer;
     std::unique_ptr<RayCalc> mRayCalc;
     std::unique_ptr<Pseudo3DRenderer> mRenderer;
-    
+
     sf::Font mUiFont;
     GameState mState = GameState::MainMenu;
     int mMainMenuIndex = 0;
@@ -55,9 +56,9 @@ private:
     bool mDebugMode = false;
     void toggleDebugMode();
 
-    bool mDebug2DMode = false; 
-    void render2D();  
-    
+    bool mDebug2DMode = false;
+    void render2D();
+
     bool mChunkDebugMode = false;
     void toggleChunkDebugMode();
 
@@ -73,6 +74,7 @@ private:
 
     float mWeaponKick = 0.0f;
     float mHitMarkerTimer = 0.0f;
+    float mPickupMessageTimer = 0.0f;
 
     enum class WeaponAnimState
     {

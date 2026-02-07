@@ -10,47 +10,6 @@ Map::Map() : mCollisionLayer(10, 10)
     // mChunkManager = std::make_unique<ChunkManager>(*this);
 }
 
-// void Map::initializeBaseGrid()
-// {
-//     mBaseGrid = {
-//         {'#', '#', '#', '#', '#', '#', '#', '#', '#', '#'},
-//         {'#', '.', '.', '.', '.', '.', '.', '.', '.', '#'},
-//         {'#', '.', '#', '#', '.', '#', '#', '.', '.', '#'},
-//         {'#', '.', '#', '.', '.', '.', '#', '.', '.', '#'},
-//         {'#', '.', '#', '.', '.', '.', '#', '.', '.', '#'},
-//         {'#', '.', '.', '.', '#', '.', '.', '.', '.', '#'},
-//         {'#', '.', '#', '.', '#', '.', '#', '.', '.', '#'},
-//         {'#', '.', '#', '.', '.', '.', '#', '.', '.', '#'},
-//         {'#', '.', '.', '.', '.', '.', '.', '.', '.', '#'},
-//         {'#', '#', '#', '#', '#', '#', '#', '#', '#', '#'}};
-
-//     mWidth = mBaseGrid[0].size();
-//     mHeight = mBaseGrid.size();
-// }
-
-// void Map::initializeBaseGrid()
-// {
-//     // Генерируем лабиринт 50x50 с комнатами и коридорами
-//     mBaseGrid.clear();
-//     mBaseGrid.resize(50, std::vector<char>(50, '#'));
-
-//     // Создаем несколько комнат
-//     createRoom(10, 10, 8, 8);
-//     createRoom(30, 10, 8, 8);
-//     createRoom(10, 30, 8, 8);
-//     createRoom(30, 30, 8, 8);
-
-//     // Соединяем комнаты коридорами
-//     createHorizontalCorridor(15, 14, 25);
-//     createVerticalCorridor(25, 15, 25);
-
-//     mWidth = 50;
-//     mHeight = 50;
-
-//     std::cout << "[Map] initializeBaseGrid complete. Size: "
-//               << mWidth << "x" << mHeight << std::endl;
-// }
-
 void Map::initializeBaseGrid()
 {
     mTransitions.clear();
@@ -64,27 +23,6 @@ void Map::initializeBaseGrid()
         generateDungeonBaseGrid();
     }
 }
-
-// void Map::createRoom(int x, int y, int w, int h)
-// {
-//     std::cout << "[Map] Creating room at (" << x << "," << y << ") size " << w << "x" << h << std::endl;
-
-//     for (int dy = 0; dy < h; dy++)
-//     {
-//         for (int dx = 0; dx < w; dx++)
-//         {
-//             int cellX = x + dx;
-//             int cellY = y + dy;
-
-//             // Проверяем границы
-//             if (cellX >= 0 && cellX < static_cast<int>(mBaseGrid[0].size()) &&
-//                 cellY >= 0 && cellY < static_cast<int>(mBaseGrid.size()))
-//             {
-//                 mBaseGrid[cellY][cellX] = '.';
-//             }
-//         }
-//     }
-// }
 
 void Map::createRoom(int x, int y, int w, int h)
 {
@@ -177,17 +115,6 @@ void Map::createVerticalCorridor(int x, int y1, int y2, int width)
         }
     }
 }
-
-// void Map::initializeCollisionLayer()
-// {
-//     for (int y = 0; y < mHeight; y++)
-//     {
-//         for (int x = 0; x < mWidth; x++)
-//         {
-//             mCollisionLayer.setCollision(x, y, (mBaseGrid[y][x] == '#'));
-//         }
-//     }
-// }
 
 void Map::initializeCollisionLayer()
 {
@@ -409,57 +336,6 @@ void Map::updateVisibleChunks(float x, float y)
     mChunkManager->update(sf::Vector2f(x, y));
 }
 
-// void Map::initializeSurfaces()
-// {
-//     int height = mBaseGrid.size();
-//     int width = mBaseGrid[0].size();
-
-//     std::cout << "[Map] initializeSurfaces() start" << std::endl;
-//     auto &tm = TextureManager::getInstance();
-//     const sf::Texture *atlas = tm.getAtlas("main");
-//     std::cout << "[Map] Atlas ptr = " << atlas << std::endl;
-
-//     mCells.resize(height);
-
-//     for (int y = 0; y < height; y++)
-//     {
-//         mCells[y].resize(width);
-
-//         for (int x = 0; x < width; x++)
-//         {
-//             sf::Vector2f position(static_cast<float>(x), static_cast<float>(y));
-//             auto &cell = mCells[y][x];
-
-//             cell.floor = std::make_unique<Surface>(Surface::Type::FLOOR, position);
-//             cell.floor->setMaterial(Surface::Material::SAND);
-//             if (atlas)
-//             {
-//                 cell.floor->setTextureAtlas(atlas);
-//                 cell.floor->setTextureRegion(tm.getRegion("SAND_FLOOR"));
-//             }
-
-//             cell.ceiling = std::make_unique<Surface>(Surface::Type::CEILING, position);
-//             cell.ceiling->setMaterial(Surface::Material::STONE);
-//             if (atlas)
-//             {
-//                 cell.ceiling->setTextureAtlas(atlas);
-//                 cell.ceiling->setTextureRegion(tm.getRegion("STONE_CEIL"));
-//             }
-
-//             if (mBaseGrid[y][x] == '#')
-//             {
-//                 cell.wall = std::make_unique<Surface>(Surface::Type::WALL, position);
-//                 cell.wall->setMaterial(Surface::Material::STONE);
-//                 if (atlas)
-//                 {
-//                     cell.wall->setTextureAtlas(atlas);
-//                     cell.wall->setTextureRegion(tm.getRegion("STONE_WALL"));
-//                 }
-//             }
-//         }
-//     }
-// }
-
 void Map::initializeSurfaces()
 {
     // Используем реальные размеры, а не 10x10
@@ -515,6 +391,12 @@ void Map::initializeSurfaces()
                     cell.wall->setTextureAtlas(atlas);
                     cell.wall->setTextureRegion(tm.getRegion("STONE_WALL"));
                 }
+            }
+            else
+            {
+                // Важно сбрасывать старую стену при смене карты,
+                // иначе визуально остается стена без коллизии.
+                cell.wall.reset();
             }
 
             // Текстурируем пол и потолок

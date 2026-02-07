@@ -928,26 +928,28 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
 
     mMap->regenerate(target);
     
-    sf::Vector2f startPos = destinationSpawn;
-    bool invalidSpawn =
-        startPos.x < 1.0f || startPos.y < 1.0f ||
-        startPos.x >= static_cast<float>(mMap->getWidth() - 1) ||
-        startPos.y >= static_cast<float>(mMap->getHeight() - 1) ||
-        mMap->isWall(startPos.x, startPos.y);
+    constexpr float spawnClearanceRadius = 0.28f;
+    auto isValidSpawn = [&](const sf::Vector2f &pos) {
+        return pos.x >= 1.0f && pos.y >= 1.0f &&
+               pos.x < static_cast<float>(mMap->getWidth() - 1) &&
+               pos.y < static_cast<float>(mMap->getHeight() - 1) &&
+               !mMap->checkCollision(pos.x, pos.y, spawnClearanceRadius);
+    };
 
-    if (invalidSpawn)
+    sf::Vector2f startPos = destinationSpawn;
+    if (!isValidSpawn(startPos))
     {
         startPos = mMap->findPlayerStartPosition();
     }
 
     // Дополнительная защита: если старт в стене (например, после генерации),
     // ищем ближайшую свободную клетку вокруг точки старта.
-    if (mMap->isWall(startPos.x, startPos.y))
+    if (!isValidSpawn(startPos))
     {
         bool found = false;
         int baseX = static_cast<int>(startPos.x);
         int baseY = static_cast<int>(startPos.y);
-        for (int radius = 1; radius <= 6 && !found; ++radius)
+        for (int radius = 1; radius <= 8 && !found; ++radius)
         {
             for (int dy = -radius; dy <= radius && !found; ++dy)
             {
@@ -958,11 +960,11 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
                     if (tx <= 0 || ty <= 0 || tx >= mMap->getWidth() - 1 || ty >= mMap->getHeight() - 1)
                         continue;
 
-                    float sx = static_cast<float>(tx) + 0.5f;
-                    float sy = static_cast<float>(ty) + 0.5f;
-                    if (!mMap->isWall(sx, sy))
+                    sf::Vector2f candidate(static_cast<float>(tx) + 0.5f,
+                                           static_cast<float>(ty) + 0.5f);
+                    if (isValidSpawn(candidate))
                     {
-                        startPos = sf::Vector2f(sx, sy);
+                        startPos = candidate;
                         found = true;
                     }
                 }

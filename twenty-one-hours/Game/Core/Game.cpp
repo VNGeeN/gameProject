@@ -927,6 +927,7 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
               << std::endl;
 
     mMap->regenerate(target);
+    
     sf::Vector2f startPos = destinationSpawn;
     bool invalidSpawn =
         startPos.x < 1.0f || startPos.y < 1.0f ||
@@ -968,7 +969,7 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
             }
         }
     }
-    
+
     mPlayer->setPosition(startPos.x, startPos.y);
 
     mEnemyManager = std::make_unique<EnemyManager>(*mMap);

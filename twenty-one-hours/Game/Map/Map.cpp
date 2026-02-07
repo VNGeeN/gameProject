@@ -111,13 +111,25 @@ void Map::createRoom(int x, int y, int w, int h)
         std::uniform_int_distribution<> distrib(0, 100);
 
         // Делаем 10-20% клеток стенами (только не по краям)
+        int centerX = x + w / 2;
+        int centerY = y + h / 2;
+
         for (int dy = 1; dy < h - 1; dy++)
         {
             for (int dx = 1; dx < w - 1; dx++)
             {
+                int px = x + dx;
+                int py = y + dy;
+
+                // Сохраняем центральную зону комнаты проходимой для надежного спавна/переходов
+                if (std::abs(px - centerX) <= 1 && std::abs(py - centerY) <= 1)
+                {
+                    continue;
+                }
+
                 if (distrib(gen) < 15)
                 { // 15% шанс стать стеной
-                    mBaseGrid[y + dy][x + dx] = '#';
+                    mBaseGrid[py][px] = '#';
                 }
             }
         }
@@ -825,6 +837,11 @@ void Map::generateDungeonBaseGrid()
             }
         }
     }
+
+    // Гарантируем безопасную стартовую зону после всех пост-обработок генерации
+    int safeStartX = std::max(1, std::min(static_cast<int>(mPlayerStart.x), mWidth - 2));
+    int safeStartY = std::max(1, std::min(static_cast<int>(mPlayerStart.y), mHeight - 2));
+    carveFloorRect(safeStartX - 1, safeStartY - 1, 3, 3);
 
     int walls = 0, floors = 0;
     for (int y = 0; y < mHeight; y++)

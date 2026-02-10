@@ -54,6 +54,8 @@ public:
 
     void moveForward(float distance);
     void moveBackward(float distance);
+    void strafeLeft(float distance);
+    void strafeRight(float distance);
     void rotate(float angle);
 
     const Stats &getStats() const { return mStats; }

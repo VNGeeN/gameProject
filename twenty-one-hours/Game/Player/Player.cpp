@@ -97,6 +97,54 @@ void Player::moveBackward(float distance)
     }
 }
 
+void Player::strafeLeft(float distance)
+{
+    float strafeAngle = angle - static_cast<float>(M_PI) * 0.5f;
+    float newX = x + cos(strafeAngle) * distance;
+    float newY = y + sin(strafeAngle) * distance;
+
+    if (!map.isWall(newX, newY))
+    {
+        x = newX;
+        y = newY;
+    }
+    else
+    {
+        if (!map.isWall(newX, y))
+        {
+            x = newX;
+        }
+        else if (!map.isWall(x, newY))
+        {
+            y = newY;
+        }
+    }
+}
+
+void Player::strafeRight(float distance)
+{
+    float strafeAngle = angle + static_cast<float>(M_PI) * 0.5f;
+    float newX = x + cos(strafeAngle) * distance;
+    float newY = y + sin(strafeAngle) * distance;
+
+    if (!map.isWall(newX, newY))
+    {
+        x = newX;
+        y = newY;
+    }
+    else
+    {
+        if (!map.isWall(newX, y))
+        {
+            x = newX;
+        }
+        else if (!map.isWall(x, newY))
+        {
+            y = newY;
+        }
+    }
+}
+
 void Player::rotate(float angleOffset)
 {
     angle += angleOffset;

@@ -13,7 +13,8 @@ class Pseudo3DRenderer
 {
 public:
     Pseudo3DRenderer(sf::RenderWindow &win, RayCalc &ray, Map &m, Player &p,
-                     const sf::Texture *enemyTex = nullptr);
+                     const sf::Texture *enemyTex = nullptr,
+                     const sf::Texture *bossTex = nullptr);
     void render();
     void renderWalls();
     void renderWallSlice(int column, const RayCalc::Ray &ray);
@@ -38,6 +39,7 @@ public:
                       const sf::Color &tint = sf::Color::White);
 
     const sf::Texture *getEnemyTexture() const { return mEnemyTexture; }
+    const sf::Texture *getBossTexture() const { return mBossTexture; }
 
 private:
     sf::RenderWindow &window;
@@ -74,6 +76,7 @@ private:
     sf::Vector2f calculateWorldPosForFloorCeiling(int screenX, int screenY, bool isFloor) const;
 
     const sf::Texture *mEnemyTexture = nullptr;
+    const sf::Texture *mBossTexture = nullptr;
 
     SkyboxRenderer mSkyboxRenderer;
 

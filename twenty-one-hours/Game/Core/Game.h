@@ -67,6 +67,7 @@ private:
     std::unique_ptr<EnemyManager> mEnemyManager;
 
     sf::Texture mEnemyTexture;
+    sf::Texture mBossTexture;
     sf::Texture mWeaponTexture;
     bool mWeaponTextureLoaded = false;
 

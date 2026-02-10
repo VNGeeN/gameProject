@@ -46,7 +46,7 @@ void Enemy::applyTypeStats()
         mSpeed = 0.6f;
         mDetectionDistance = 16.0f;
         mChaseDistance = 12.0f;
-        mSpriteWorldHeight = 1.6f;
+        mSpriteWorldHeight = 1.15f;
         break;
     }
 }
@@ -470,7 +470,9 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
     if (!isVisible(playerPos, rayCalc))
         return;
 
-    const sf::Texture *enemyTex = renderer.getEnemyTexture();
+    const sf::Texture *enemyTex = (mType == EnemyType::Boss)
+                                     ? renderer.getBossTexture()
+                                     : renderer.getEnemyTexture();
     if (!enemyTex)
         return;
 
@@ -482,13 +484,34 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
     if (distance > maxRenderDistance)
         return;
 
-    // Упрощенная анимация: одна строка с 8 кадрами
     sf::IntRect region;
-    int col = mCurrentFrame % 8; // 8 кадров в атласе
-    region.left = col * 128;
-    region.top = 0;
-    region.width = 128;
-    region.height = 128;
+    if (mType == EnemyType::Boss)
+    {
+        const sf::Vector2u texSize = enemyTex->getSize();
+        const int frameWidth = static_cast<int>(texSize.x / 2);
+        const int frameHeight = static_cast<int>(texSize.y / 3);
+
+        int row = 0;
+        if (mAnimationState == AnimationState::ATTACK)
+            row = 1;
+        else if (mAnimationState == AnimationState::DEATH || !mAlive)
+            row = 2;
+
+        int col = (mCurrentFrame / 2) % 2;
+        region.left = col * frameWidth;
+        region.top = row * frameHeight;
+        region.width = frameWidth;
+        region.height = frameHeight;
+    }
+    else
+    {
+        // Обычный враг: одна строка с 8 кадрами
+        int col = mCurrentFrame % 8;
+        region.left = col * 128;
+        region.top = 0;
+        region.width = 128;
+        region.height = 128;
+    }
 
     sf::Color tint = sf::Color::White;
     if (mType == EnemyType::Raider)

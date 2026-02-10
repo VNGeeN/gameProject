@@ -5,8 +5,9 @@
 #include <algorithm>
 
 Pseudo3DRenderer::Pseudo3DRenderer(sf::RenderWindow &win, RayCalc &ray, Map &m, Player &p,
-                                   const sf::Texture *enemyTex)
-    : window(win), rayCalc(ray), map(m), player(p), mSkyboxRenderer(win), mEnemyTexture(enemyTex)
+                                   const sf::Texture *enemyTex,
+                                   const sf::Texture *bossTex)
+    : window(win), rayCalc(ray), map(m), player(p), mSkyboxRenderer(win), mEnemyTexture(enemyTex), mBossTexture(bossTex)
 {
     if (mSkyboxRenderer.loadFromFile("assets/gloomy_up.png"))
     {
@@ -555,28 +556,28 @@ float Pseudo3DRenderer::calculateObjectScale(float distance)
 float Pseudo3DRenderer::calculateBrightness(float distance) const
 {
     float viewDistance = getViewDistance();
-    
+
     // Нормализация расстояния в диапазон [0, 1]
     float normalized = distance / (viewDistance > 1.0f ? viewDistance : 1.0f);
-    
+
     // Ограничиваем нормализованное значение вручную (без std::clamp)
-    if (normalized < 0.0f) 
+    if (normalized < 0.0f)
         normalized = 0.0f;
-    else if (normalized > 1.0f) 
+    else if (normalized > 1.0f)
         normalized = 1.0f;
-    
+
     // Глобальная карта становится темнее вдали, чтобы скрыть дальнюю прорисовку
     float fog = 1.0f - normalized;
-    
+
     // Вычисляем яркость
     float brightness = 0.2f + fog * fog * 0.8f;
-    
+
     // Ограничиваем яркость вручную (без std::clamp)
-    if (brightness < 0.2f) 
+    if (brightness < 0.2f)
         brightness = 0.2f;
-    else if (brightness > 1.0f) 
+    else if (brightness > 1.0f)
         brightness = 1.0f;
-    
+
     return brightness;
 }
 

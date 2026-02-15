@@ -604,7 +604,7 @@ void Game::renderWeapon()
 
     float bobX = std::cos(mWeaponBobPhase * 0.7f) * 3.0f;
     float bobY = std::sin(mWeaponBobPhase) * 4.0f;
-    sf::Vector2f basePos(size.x * 0.5f + bobX, size.y * 0.98f - kick + bobY);
+    sf::Vector2f basePos(size.x * 0.5f + bobX, size.y * 0.98f - kick + bobY + 100);
 
     sf::Sprite sprite(mWeaponTexture);
     sf::Vector2u texSize = mWeaponTexture.getSize();
@@ -621,7 +621,7 @@ void Game::renderWeapon()
         float flashAlpha = std::min(1.0f, mWeaponShootTimer / 0.08f);
         sf::CircleShape flash(size.x * 0.035f, 18);
         flash.setOrigin(flash.getRadius(), flash.getRadius());
-        flash.setPosition(basePos.x + desiredWidth * 0.25f, basePos.y - texSize.y * scale * 0.55f);
+        flash.setPosition(basePos.x + desiredWidth * 0.25f - 90, basePos.y - texSize.y * scale * 0.55f - 60);
         flash.setFillColor(sf::Color(255, 220, 90, static_cast<sf::Uint8>(190 * flashAlpha)));
         mWindow.draw(flash);
 

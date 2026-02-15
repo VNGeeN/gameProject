@@ -45,6 +45,7 @@ public:
     float getX() const { return x; }
     float getY() const { return y; }
     float getAngle() const { return angle; }
+    float getPitch() const { return pitch; }
 
     void setPosition(float newX, float newY)
     {
@@ -57,6 +58,7 @@ public:
     void strafeLeft(float distance);
     void strafeRight(float distance);
     void rotate(float angle);
+    void rotatePitch(float pitchOffset);
 
     const Stats &getStats() const { return mStats; }
     const WeaponStats &getWeaponStats() const { return mWeapons[static_cast<std::size_t>(mCurrentWeapon)]; }
@@ -76,6 +78,7 @@ public:
 private:
     float x, y;
     float angle;
+    float pitch;
     Map &map;
 
     Stats mStats;

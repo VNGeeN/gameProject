@@ -59,8 +59,11 @@ Pseudo3DRenderer::Pseudo3DRenderer(sf::RenderWindow &win, RayCalc &ray, Map &m, 
 void Pseudo3DRenderer::render()
 {
     window.clear(sf::Color::Black);
-    int horizon = window.getSize().y / 2;
-    mSkyboxRenderer.render(player.getAngle(), horizon);
+    int screenHeight = static_cast<int>(window.getSize().y);
+    float distanceToProjection = window.getSize().x / (2.0f * tan(player.fov / 2.0f));
+    int horizon = static_cast<int>(screenHeight / 2.0f + tan(player.getPitch()) * distanceToProjection);
+    horizon = std::max(1, std::min(screenHeight - 1, horizon));
+    mSkyboxRenderer.render(player.getAngle(), static_cast<float>(horizon));
 
     if (mCeilingEnabled)
     {
@@ -94,6 +97,7 @@ void Pseudo3DRenderer::renderDebugInfo()
     ss << "Player: (" << player.getX() << ", " << player.getY() << ")\n";
     ss << "Angle: " << player.getAngle() << "\n";
     ss << "FOV: " << player.fov << "\n";
+    ss << "Pitch: " << player.getPitch() << "\n";
 
     debugText.setString(ss.str());
     window.draw(debugText);
@@ -103,7 +107,9 @@ void Pseudo3DRenderer::renderFloor()
 {
     int screenHeight = window.getSize().y;
     int screenWidth = window.getSize().x;
-    int horizon = screenHeight / 2;
+    float distanceToProjection = screenWidth / (2.0f * tan(player.fov / 2.0f));
+    int horizon = static_cast<int>(screenHeight / 2.0f + tan(player.getPitch()) * distanceToProjection);
+    horizon = std::max(1, std::min(screenHeight - 1, horizon));
 
     if (screenHeight - horizon <= 0)
         return;
@@ -189,7 +195,9 @@ void Pseudo3DRenderer::renderCeiling()
 {
     int screenHeight = window.getSize().y;
     int screenWidth = window.getSize().x;
-    int horizon = screenHeight / 2;
+    float distanceToProjection = screenWidth / (2.0f * tan(player.fov / 2.0f));
+    int horizon = static_cast<int>(screenHeight / 2.0f + tan(player.getPitch()) * distanceToProjection);
+    horizon = std::max(1, std::min(screenHeight - 1, horizon));
 
     if (horizon <= 0)
         return;
@@ -417,7 +425,12 @@ void Pseudo3DRenderer::renderWallSlice(int column, const RayCalc::Ray &ray)
     sf::VertexArray wallQuad(sf::Quads, 4);
     float x0 = static_cast<float>(column);
     float x1 = x0 + 1.0f;
-    float y0 = (window.getSize().y - wallHeight) / 2.0f;
+    float screenHeight = static_cast<float>(window.getSize().y);
+    float screenWidth = static_cast<float>(window.getSize().x);
+    float distanceToProjection = screenWidth / (2.0f * tan(player.fov / 2.0f));
+    float horizon = screenHeight / 2.0f + tan(player.getPitch()) * distanceToProjection;
+
+    float y0 = horizon - wallHeight / 2.0f;
     float y1 = y0 + wallHeight;
 
     wallQuad[0].position = sf::Vector2f(x0, y0);
@@ -493,15 +506,21 @@ sf::Vector2f Pseudo3DRenderer::calculateWorldPosForFloorCeiling(int screenX, int
     float distanceToProjection = screenWidth / (2.0f * tan(player.fov / 2.0f));
 
     float cameraHeight = 0.5f;
+    float horizon = screenHeight / 2.0f + tan(player.getPitch()) * distanceToProjection;
 
     float relativeY;
     if (isFloor)
     {
-        relativeY = static_cast<float>(screenY - screenHeight / 2);
+        relativeY = static_cast<float>(screenY) - horizon;
     }
     else
     {
-        relativeY = static_cast<float>(screenHeight / 2 - screenY);
+        relativeY = horizon - static_cast<float>(screenY);
+    }
+
+    if (std::abs(relativeY) < 0.0001f)
+    {
+        relativeY = (relativeY < 0.0f) ? -0.0001f : 0.0001f;
     }
 
     float distance = (cameraHeight * distanceToProjection) / relativeY;
@@ -690,8 +709,8 @@ void Pseudo3DRenderer::renderSprite(const sf::Vector2f &spritePos,
 
     float screenHeight = static_cast<float>(window.getSize().y);
     float screenWidth = static_cast<float>(window.getSize().x);
-    float horizon = screenHeight / 2.0f;
     float distanceToProjection = screenWidth / (2.0f * tan(player.fov / 2.0f));
+    float horizon = screenHeight / 2.0f + tan(player.getPitch()) * distanceToProjection;
 
     float cameraHeight = 0.5f;
 

@@ -165,10 +165,15 @@ void Game::processEvents()
     int deltaX = mousePos.x - center.x;
     int deltaY = mousePos.y - center.y;
 
+    float sensitivity = 0.002f;
     if (deltaX != 0)
     {
-        float sensitivity = 0.002f;
         mPlayer->rotate(deltaX * sensitivity);
+    }
+
+    if (deltaY != 0)
+    {
+        mPlayer->rotatePitch(-deltaY * sensitivity);
     }
 
     sf::Mouse::setPosition(center, mWindow);

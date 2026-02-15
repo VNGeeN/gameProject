@@ -10,6 +10,7 @@ Player::Player(Map &map) : map(map)
     y = startPos.y;
 
     angle = 0.0f;
+    pitch = 0.0f;
     fov = M_PI / 3.0f;
 
     WeaponStats pistol;
@@ -157,6 +158,21 @@ void Player::rotate(float angleOffset)
     if (angle >= 2 * M_PI)
     {
         angle -= 2 * M_PI;
+    }
+}
+
+void Player::rotatePitch(float pitchOffset)
+{
+    pitch += pitchOffset;
+
+    const float maxPitch = static_cast<float>(M_PI) * 0.45f;
+    if (pitch > maxPitch)
+    {
+        pitch = maxPitch;
+    }
+    else if (pitch < -maxPitch)
+    {
+        pitch = -maxPitch;
     }
 }
 

@@ -28,7 +28,6 @@ void Map::initializeBaseGrid()
 
 void Map::createRoom(int x, int y, int w, int h)
 {
-    // Гарантируем, что вся комната — пол
     for (int dy = 0; dy < h; dy++)
     {
         for (int dx = 0; dx < w; dx++)
@@ -43,14 +42,12 @@ void Map::createRoom(int x, int y, int w, int h)
         }
     }
 
-    // Добавляем немного "неровности" ТОЛЬКО для больших комнат
     if (w > 6 && h > 6)
     {
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<> distrib(0, 100);
 
-        // Делаем 10-20% клеток стенами (только не по краям)
         int centerX = x + w / 2;
         int centerY = y + h / 2;
 
@@ -61,14 +58,13 @@ void Map::createRoom(int x, int y, int w, int h)
                 int px = x + dx;
                 int py = y + dy;
 
-                // Сохраняем центральную зону комнаты проходимой для надежного спавна/переходов
                 if (std::abs(px - centerX) <= 1 && std::abs(py - centerY) <= 1)
                 {
                     continue;
                 }
 
                 if (distrib(gen) < 15)
-                { // 15% шанс стать стеной
+                {
                     mBaseGrid[py][px] = '#';
                 }
             }
@@ -120,7 +116,6 @@ void Map::createVerticalCorridor(int x, int y1, int y2, int width)
 
 void Map::initializeCollisionLayer()
 {
-    // Пересоздаем CollisionLayer с правильными размерами
     mCollisionLayer = CollisionLayer(mWidth, mHeight);
 
     for (int y = 0; y < mHeight; y++)
@@ -207,7 +202,6 @@ Surface *Map::getCeilingAt(float x, float y) const
 
 Surface *Map::getSurfaceAt(float x, float y, Surface::Type type) const
 {
-    // Если карта маленькая (< 16x16) - используем старый способ
     if (mWidth <= 16 && mHeight <= 16)
     {
         int cellX = static_cast<int>(x);
@@ -219,10 +213,8 @@ Surface *Map::getSurfaceAt(float x, float y, Surface::Type type) const
         return nullptr;
     }
 
-    // Для больших карт - создаем менеджер чанков если нужно
     if (!mChunkManager)
     {
-        // const_cast потому что метод константный, но mChunkManager mutable
         const_cast<Map *>(this)->mChunkManager = std::make_unique<ChunkManager>(*const_cast<Map *>(this));
     }
 
@@ -340,26 +332,11 @@ void Map::updateVisibleChunks(float x, float y)
 
 void Map::initializeSurfaces()
 {
-    // Используем реальные размеры, а не 10x10
-    int height = mHeight; // должно быть 50
-    int width = mWidth;   // должно быть 50
+    int height = mHeight;
+    int width = mWidth;
 
     std::cout << "[Map] initializeSurfaces() - размеры: "
               << width << "x" << height << std::endl;
-
-    // std::cout << "[Map] First row: ";
-    // for (int x = 0; x < std::min(10, width); x++)
-    // {
-    //     std::cout << mBaseGrid[0][x];
-    // }
-    // std::cout << "..." << std::endl;
-
-    // std::cout << "[Map] Row 25: ";
-    // for (int x = 0; x < std::min(10, width); x++)
-    // {
-    //     std::cout << mBaseGrid[25][x];
-    // }
-    // std::cout << "..." << std::endl;
 
     auto &tm = TextureManager::getInstance();
     const sf::Texture *atlas = tm.getAtlas("main");
@@ -375,15 +352,12 @@ void Map::initializeSurfaces()
             sf::Vector2f position(static_cast<float>(x), static_cast<float>(y));
             auto &cell = mCells[y][x];
 
-            // Создаем пол для ВСЕХ клеток
             cell.floor = std::make_unique<Surface>(Surface::Type::FLOOR, position);
             cell.floor->setMaterial(Surface::Material::SAND);
 
-            // Создаем потолок для ВСЕХ клеток
             cell.ceiling = std::make_unique<Surface>(Surface::Type::CEILING, position);
             cell.ceiling->setMaterial(Surface::Material::STONE);
 
-            // Стена ТОЛЬКО там, где есть '#'
             if (mBaseGrid[y][x] == '#')
             {
                 cell.wall = std::make_unique<Surface>(Surface::Type::WALL, position);
@@ -396,12 +370,9 @@ void Map::initializeSurfaces()
             }
             else
             {
-                // Важно сбрасывать старую стену при смене карты,
-                // иначе визуально остается стена без коллизии.
                 cell.wall.reset();
             }
 
-            // Текстурируем пол и потолок
             if (atlas)
             {
                 if (cell.floor)
@@ -418,7 +389,6 @@ void Map::initializeSurfaces()
         }
     }
 
-    // Выводим отладочную информацию
     int wallCount = 0;
     for (int y = 0; y < height; y++)
     {
@@ -485,9 +455,7 @@ void Map::generateDungeonBaseGrid()
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> distrib(0, 100);
 
-    std::cout << "[Map] Generating dungeon level..." << std::endl;
-
-    int numRooms = 10 + (distrib(gen) % 6); // От 10 до 15 комнат
+    int numRooms = 10 + (distrib(gen) % 6);
     std::vector<sf::IntRect> rooms;
     rooms.reserve(numRooms);
 
@@ -498,8 +466,8 @@ void Map::generateDungeonBaseGrid()
 
         while (!placed && attempts < 120)
         {
-            int roomWidth = 6 + (distrib(gen) % 7);  // 6-12
-            int roomHeight = 6 + (distrib(gen) % 7); // 6-12
+            int roomWidth = 6 + (distrib(gen) % 7);
+            int roomHeight = 6 + (distrib(gen) % 7);
             int roomX = 1 + (distrib(gen) % (mWidth - roomWidth - 2));
             int roomY = 1 + (distrib(gen) % (mHeight - roomHeight - 2));
 
@@ -526,9 +494,6 @@ void Map::generateDungeonBaseGrid()
                 createRoom(roomX, roomY, roomWidth, roomHeight);
                 rooms.push_back(newRoom);
                 placed = true;
-                std::cout << "[Map] Created room " << i << " at ("
-                          << roomX << "," << roomY << ") size "
-                          << roomWidth << "x" << roomHeight << std::endl;
             }
 
             attempts++;
@@ -601,7 +566,6 @@ void Map::generateDungeonBaseGrid()
                 }
 
                 connected[bestTo] = true;
-                std::cout << "[Map] Connected room " << bestFrom << " to room " << bestTo << std::endl;
             }
         }
     }
@@ -725,13 +689,11 @@ void Map::generateDungeonBaseGrid()
                 if (wallCount == 8)
                 {
                     mBaseGrid[y][x] = '#';
-                    std::cout << "[Map] Removed isolated 1x1 at (" << x << "," << y << ")" << std::endl;
                 }
             }
         }
     }
 
-    // Гарантируем безопасную стартовую зону после всех пост-обработок генерации
     int safeStartX = std::max(1, std::min(static_cast<int>(mPlayerStart.x), mWidth - 2));
     int safeStartY = std::max(1, std::min(static_cast<int>(mPlayerStart.y), mHeight - 2));
     carveFloorRect(safeStartX - 1, safeStartY - 1, 3, 3);
@@ -747,8 +709,6 @@ void Map::generateDungeonBaseGrid()
                 floors++;
         }
     }
-
-    std::cout << "[Map] Dungeon generated: " << walls << " walls, " << floors << " floors" << std::endl;
 }
 
 void Map::generateOpenWorldBaseGrid()
@@ -805,8 +765,6 @@ void Map::generateOpenWorldBaseGrid()
         carveFloorRect(point.x - 2, point.y - 2, 5, 5);
         addTransition(point.x, point.y, LevelType::Dungeon, sf::Vector2f(-1.0f, -1.0f));
     }
-
-    std::cout << "[Map] Open world generated: " << mWidth << "x" << mHeight << std::endl;
 }
 
 void Map::addTransition(int x, int y, LevelType target, const sf::Vector2f &destinationSpawn,
@@ -820,10 +778,6 @@ void Map::addTransition(int x, int y, LevelType target, const sf::Vector2f &dest
 
     mTransitions.push_back({triggerArea, destinationSpawn, target});
     mDoors.push_back({triggerArea, target});
-    std::cout << "[Map] Transition at (" << x << "," << y << ") -> "
-              << (target == LevelType::OpenWorld ? "OpenWorld" : "Dungeon")
-              << ", spawn (" << destinationSpawn.x << "," << destinationSpawn.y << ")"
-              << std::endl;
 }
 
 void Map::carveFloorRect(int x, int y, int w, int h)

@@ -1,6 +1,8 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include <memory>
 #include "../Map/Map.h"
+#include "EnemyTypeProfile.h"
 
 class Player;
 class RayCalc;
@@ -8,11 +10,11 @@ class Pseudo3DRenderer;
 
 enum class EnemyState
 {
-    IDLE,   // Ожидание
-    PATROL, // Патрулирование
-    CHASE,  // Преследование
-    ATTACK, // Атака
-    DEAD    // Мертв
+    IDLE,   
+    PATROL, 
+    CHASE,  
+    ATTACK, 
+    DEAD    
 };
 
 enum class AnimationState
@@ -26,35 +28,17 @@ enum class AnimationState
     DEATH
 };
 
-// направление взгляда
 enum class FacingDirection
 {
-    FORWARD, // Смотрит направо
-    BACK,    // Смотрит наверх
-    LEFT,    // Смотрит налево
-    RIGHT    // Смотрит вниз
-};
-
-enum class EnemyType
-{
-    Grunt,
-    Raider,
-    Boss
+    FORWARD,
+    BACK,
+    LEFT,
+    RIGHT
 };
 
 class Enemy
 {
 public:
-    struct Stats
-    {
-        int maxHealth = 60;
-        int health = 60;
-        int maxArmor = 15;
-        int armor = 15;
-        int damage = 8;
-        float attackRange = 1.4f;
-    };
-
     Enemy(Map &map, float x, float y, EnemyType type = EnemyType::Grunt);
 
     bool isVisible(const sf::Vector2f &playerPos, const RayCalc &rayCalc) const;
@@ -78,10 +62,10 @@ public:
 
     void setAnimationState(AnimationState state);
     AnimationState getAnimationState() const { return mAnimationState; }
-    const Stats &getStats() const { return mStats; }
+    const EnemyStats &getStats() const { return mStats; }
 
-    EnemyType getType() const { return mType; }
-    bool isBoss() const { return mType == EnemyType::Boss; }
+    EnemyType getType() const { return mProfile->getType(); }
+    bool isBoss() const { return mProfile->isBoss(); }
 
 private:
     float mVisibility = 1.0f;
@@ -91,17 +75,15 @@ private:
     Map &mMap;
     sf::Vector2f mPosition;
     bool mAlive = true;
-    Stats mStats;
-    EnemyType mType = EnemyType::Grunt;
+    EnemyStats mStats;
+    std::shared_ptr<const EnemyTypeProfile> mProfile;
     float mSpriteWorldHeight = 1.0f;
 
-    // Параметры ИИ
     float mRadius = 0.25f;
     float mSpeed = 0.8f;
-    float mDetectionDistance = 12.0f; // видит на 12 клеток
-    float mChaseDistance = 8.0f;      // преследует до 8 клеток
+    float mDetectionDistance = 12.0f; 
+    float mChaseDistance = 8.0f;      
 
-    // LOD
     mutable int mFrameCounter = 0;
 
     EnemyState mState = EnemyState::PATROL;

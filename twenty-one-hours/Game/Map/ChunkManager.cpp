@@ -10,11 +10,10 @@ ChunkManager::ChunkManager(Map &map) : mMap(map)
 void ChunkManager::update(const sf::Vector2f &playerPos)
 {
 
-    // Пересчитываем только если игрок переместился достаточно
     float dx = playerPos.x - mLastPlayerPos.x;
     float dy = playerPos.y - mLastPlayerPos.y;
     if (dx * dx + dy * dy < 4.0f)
-    { // Квадрат расстояния = 4.0 (2 единицы)
+    { 
         return;
     }
 
@@ -29,7 +28,6 @@ Chunk *ChunkManager::getChunk(const Chunk::Coord &coord)
 
     if (it == mChunkCache.end())
     {
-        // Ленивая инициализация
         auto chunk = std::make_unique<Chunk>(coord, mMap);
         it = mChunkCache.emplace(hash, std::move(chunk)).first;
     }
@@ -51,15 +49,12 @@ Surface *ChunkManager::getSurfaceAt(float worldX, float worldY, Surface::Type ty
     if (!chunk)
         return nullptr;
 
-    // Корректное вычисление локальных координат с учетом отрицательных значений
     int globalX = static_cast<int>(worldX);
     int globalY = static_cast<int>(worldY);
 
-    // Вычисляем чанковые координаты
     int chunkX = static_cast<int>(std::floor(worldX / Chunk::CHUNK_SIZE));
     int chunkY = static_cast<int>(std::floor(worldY / Chunk::CHUNK_SIZE));
 
-    // Локальные координаты внутри чанка
     int localX = ((globalX % Chunk::CHUNK_SIZE) + Chunk::CHUNK_SIZE) % Chunk::CHUNK_SIZE;
     int localY = ((globalY % Chunk::CHUNK_SIZE) + Chunk::CHUNK_SIZE) % Chunk::CHUNK_SIZE;
 
@@ -75,7 +70,6 @@ void ChunkManager::calculateVisibleChunks(const sf::Vector2f &playerPos)
 
     int radius = mViewDistance;
 
-    // Собираем квадрат (2*radius+1)^2
     for (int dy = -radius; dy <= radius; dy++)
     {
         for (int dx = -radius; dx <= radius; dx++)
@@ -94,7 +88,6 @@ void ChunkManager::calculateVisibleChunks(const sf::Vector2f &playerPos)
 bool ChunkManager::isChunkVisible(const Chunk::Coord &coord,
                                   const sf::Vector2f &playerPos) const
 {
-    // Расстояние от центра чанка до игрока
     float chunkCenterX = (coord.x + 0.5f) * Chunk::CHUNK_SIZE;
     float chunkCenterY = (coord.y + 0.5f) * Chunk::CHUNK_SIZE;
 
@@ -102,7 +95,6 @@ bool ChunkManager::isChunkVisible(const Chunk::Coord &coord,
     float dy = chunkCenterY - playerPos.y;
     float distance = std::sqrt(dx * dx + dy * dy);
 
-    // Макс. расстояние: (viewDistance + 0.5) * CHUNK_SIZE
     float maxDistance = (mViewDistance + 0.5f) * Chunk::CHUNK_SIZE;
     return distance <= maxDistance;
 }

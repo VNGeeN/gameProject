@@ -7,7 +7,7 @@ class Map;
 class Chunk
 {
 public:
-    static constexpr int CHUNK_SIZE = 8; // 8x8 cells
+    static constexpr int CHUNK_SIZE = 8; 
 
     struct Coord
     {
@@ -41,5 +41,5 @@ public:
 
 private:
     Coord mCoord;
-    Map &mMap; // ссылка на Map — НЕТ КОПИРОВАНИЯ ДАННЫХ!
+    Map &mMap; 
 };

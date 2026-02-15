@@ -24,6 +24,7 @@ add_executable(twenty-one-hours
     Game/Map/CollisionLayer.cpp
     Game/Rendering/Render/Skybox/SkyboxRenderer.cpp
     Game/Entities/Enemy.cpp
+    Game/Entities/EnemyTypeProfile.cpp
     Game/Entities/EnemyManager.cpp
 )
 

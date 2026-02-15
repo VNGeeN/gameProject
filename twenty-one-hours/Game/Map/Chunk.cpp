@@ -16,8 +16,6 @@ Surface* Chunk::getSurfaceAtLocal(int localX, int localY, Surface::Type type) co
     int globalX = mCoord.x * CHUNK_SIZE + localX;
     int globalY = mCoord.y * CHUNK_SIZE + localY;
     
-    // Используем прямой доступ к массиву клеток через Map
-    // Нужно добавить в Map метод getSurfaceDirect
     return mMap.getSurfaceDirect(globalX, globalY, type);
 }
 

@@ -3,11 +3,11 @@
 #include <algorithm>
 
 const std::array<sf::Color, 5> Surface::MATERIAL_BASE_COLORS = {{
-    sf::Color(210, 180, 140), // SAND
-    sf::Color(100, 100, 100), // STONE
-    sf::Color(120, 120, 120), // METAL
-    sf::Color(139, 69, 19),   // WOOD
-    sf::Color(34, 139, 34)    // GRASS
+    sf::Color(210, 180, 140), 
+    sf::Color(100, 100, 100), 
+    sf::Color(120, 120, 120), 
+    sf::Color(139, 69, 19),   
+    sf::Color(34, 139, 34)    
 }};
 
 const std::array<sf::Color, 9> Surface::SEGMENT_COLORS = {{

@@ -7,48 +7,14 @@
 #include "../Player/Player.h"
 
 Enemy::Enemy(Map &map, float x, float y, EnemyType type)
-    : mMap(map), mPosition(x, y), mType(type), mAttackCooldown(sf::seconds(1.0f)),
+    : mMap(map), mPosition(x, y), mProfile(createEnemyTypeProfile(type)), mAttackCooldown(sf::seconds(1.0f)),
       mAttackTimer(sf::Time::Zero), mStateTimer(sf::Time::Zero)
 {
-    applyTypeStats();
-}
-
-void Enemy::applyTypeStats()
-{
-    switch (mType)
-    {
-    case EnemyType::Grunt:
-        mStats = Stats{};
-        mSpeed = 0.8f;
-        mDetectionDistance = 12.0f;
-        mChaseDistance = 8.0f;
-        mSpriteWorldHeight = 1.0f;
-        break;
-    case EnemyType::Raider:
-        mStats.maxHealth = 45;
-        mStats.health = 45;
-        mStats.maxArmor = 5;
-        mStats.armor = 5;
-        mStats.damage = 6;
-        mStats.attackRange = 1.2f;
-        mSpeed = 1.2f;
-        mDetectionDistance = 14.0f;
-        mChaseDistance = 10.0f;
-        mSpriteWorldHeight = 0.9f;
-        break;
-    case EnemyType::Boss:
-        mStats.maxHealth = 220;
-        mStats.health = 220;
-        mStats.maxArmor = 50;
-        mStats.armor = 50;
-        mStats.damage = 18;
-        mStats.attackRange = 2.0f;
-        mSpeed = 0.6f;
-        mDetectionDistance = 16.0f;
-        mChaseDistance = 12.0f;
-        mSpriteWorldHeight = 1.15f;
-        break;
-    }
+    mStats = mProfile->makeStats();
+    mSpeed = mProfile->getSpeed();
+    mDetectionDistance = mProfile->getDetectionDistance();
+    mChaseDistance = mProfile->getChaseDistance();
+    mSpriteWorldHeight = mProfile->getSpriteWorldHeight();
 }
 
 bool Enemy::canSeePlayer(const sf::Vector2f &playerPos) const
@@ -60,7 +26,6 @@ bool Enemy::canSeePlayer(const sf::Vector2f &playerPos) const
     if (distance > mDetectionDistance)
         return false;
 
-    // Проверяем, нет ли стен на пути
     int steps = std::min(10, static_cast<int>(distance * 2));
     for (int i = 1; i < steps; i++)
     {
@@ -82,27 +47,24 @@ void Enemy::moveToPlayer(const sf::Vector2f &playerPos, float deltaTime)
     float dy = playerPos.y - mPosition.y;
     float distance = std::sqrt(dx * dx + dy * dy);
 
-    if (distance > 0.5f) // Минимальное расстояние - не подходим вплотную
+    if (distance > 0.5f)
     {
         dx /= distance;
         dy /= distance;
         float newX = mPosition.x + dx * mSpeed * deltaTime;
         float newY = mPosition.y + dy * mSpeed * deltaTime;
 
-        // Проверяем коллизию с картой
         if (!mMap.isWall(newX, newY))
         {
-            // Проверяем коллизию с игроком (радиус 0.8)
             float playerDistance = sqrt(
                 (newX - playerPos.x) * (newX - playerPos.x) +
                 (newY - playerPos.y) * (newY - playerPos.y));
 
-            if (playerDistance > 0.8f) // Минимальное расстояние до игрока
+            if (playerDistance > 0.8f)
             {
                 mPosition.x = newX;
                 mPosition.y = newY;
             }
-            // Если слишком близко к игроку - останавливаемся
         }
     }
 }
@@ -126,13 +88,9 @@ void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float play
         std::pow(playerPos.x - mPosition.x, 2) +
         std::pow(playerPos.y - mPosition.y, 2));
 
-    // LOD
     if (distanceToPlayer > 15.0f && mFrameCounter % 3 != 0)
         return;
 
-    // Фрустум
-    // УБИРАЕМ ПОВТОРНОЕ ОБЪЯВЛЕНИЕ float angleToEnemy и float angleDiff
-    // Используем те же переменные, что объявлены выше в методе
     float angleToEnemy = std::atan2(mPosition.y - playerPos.y, mPosition.x - playerPos.x);
     float angleDiff = std::abs(angleToEnemy - playerAngle);
     if (angleDiff > M_PI)
@@ -144,12 +102,10 @@ void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float play
         {
             moveToPlayer(playerPos, deltaTime.asSeconds());
 
-            // Определяем направление движения
             float dx = playerPos.x - mPosition.x;
             float dy = playerPos.y - mPosition.y;
             float angle = std::atan2(dy, dx);
 
-            // Выбираем анимацию по углу
             if (std::abs(angle) < M_PI / 4.0f)
             {
                 mAnimationState = AnimationState::WALK_FORWARD;
@@ -183,14 +139,10 @@ void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float play
 
     updateState(deltaTime, playerPos);
 
-    // Плавное изменение видимости
-    // УБИРАЕМ ПОВТОРНОЕ ОБЪЯВЛЕНИЕ - используем уже вычисленные значения
-    // В пределах поля зрения?
     bool hasLineOfSight = canSeePlayer(playerPos);
 
-    // Не прячем врага по углу экрана — видимость зависит только от препятствий.
     float targetVisibility = hasLineOfSight ? 1.0f : 0.75f;
-    float visibilitySpeed = 3.0f; // Скорость появления/исчезания
+    float visibilitySpeed = 3.0f;
 
     if (mVisibility < targetVisibility)
     {
@@ -207,126 +159,12 @@ void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float play
 
     mVisibility = std::max(0.0f, std::min(mVisibility, 1.0f));
 
-    // Анимация
     if (mFrameTimer.getElapsedTime().asSeconds() > mFrameRate)
     {
         mFrameTimer.restart();
         mCurrentFrame = (mCurrentFrame + 1) % 4; // 4 кадра на состояние
     }
 }
-
-// void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float playerAngle)
-// {
-//     mLastPosition = mPosition;
-//     if (!mAlive)
-//     {
-//         // Умирающая анимация
-//         mAnimationState = AnimationState::DEATH;
-//         if (mFrameTimer.getElapsedTime().asSeconds() > mFrameRate)
-//         {
-//             mFrameTimer.restart();
-//             mCurrentFrame = (mCurrentFrame + 1) % 4;
-//         }
-//         return;
-//     }
-
-//     mFrameCounter++;
-//     float distanceToPlayer = std::sqrt(
-//         std::pow(playerPos.x - mPosition.x, 2) +
-//         std::pow(playerPos.y - mPosition.y, 2));
-
-//     // LOD
-//     if (distanceToPlayer > 15.0f && mFrameCounter % 3 != 0)
-//         return;
-
-//     // Фрустум
-//     float angleToEnemy = std::atan2(mPosition.y - playerPos.y, mPosition.x - playerPos.x);
-//     float angleDiff = std::abs(angleToEnemy - playerAngle);
-//     if (angleDiff > M_PI)
-//         angleDiff = 2 * M_PI - angleDiff;
-
-//     if (angleDiff < M_PI / 2.0f || distanceToPlayer < 8.0f)
-//     {
-//         if (canSeePlayer(playerPos))
-//         {
-//             moveToPlayer(playerPos, deltaTime.asSeconds());
-
-//             // Определяем направление движения относительно игрока
-//             float dx = playerPos.x - mPosition.x;
-//             float dy = playerPos.y - mPosition.y;
-//             float angle = std::atan2(dy, dx);
-
-//             // Выбираем анимацию по углу
-//             if (std::abs(angle) < M_PI / 4.0f)
-//             {
-//                 mAnimationState = AnimationState::WALK_FORWARD;
-//                 mFacingDirection = FacingDirection::FORWARD;
-//             }
-//             else if (std::abs(angle - M_PI / 2.0f) < M_PI / 4.0f)
-//             {
-//                 mAnimationState = AnimationState::WALK_RIGHT;
-//                 mFacingDirection = FacingDirection::RIGHT;
-//             }
-//             else if (std::abs(angle - M_PI) < M_PI / 4.0f)
-//             {
-//                 mAnimationState = AnimationState::WALK_BACK;
-//                 mFacingDirection = FacingDirection::BACK;
-//             }
-//             else if (std::abs(angle + M_PI / 2.0f) < M_PI / 4.0f)
-//             {
-//                 mAnimationState = AnimationState::WALK_LEFT;
-//                 mFacingDirection = FacingDirection::LEFT;
-//             }
-//         }
-//         else
-//         {
-//             mAnimationState = AnimationState::IDLE;
-//         }
-//     }
-//     else
-//     {
-//         mAnimationState = AnimationState::IDLE;
-//     }
-
-//     // Анимация
-//     if (mFrameTimer.getElapsedTime().asSeconds() > mFrameRate)
-//     {
-//         mFrameTimer.restart();
-//         mCurrentFrame = (mCurrentFrame + 1) % 4; // 4 кадра на состояние
-//     }
-
-//      // Плавное изменение видимости
-//     angleToEnemy = std::atan2(mPosition.y - playerPos.y, mPosition.x - playerPos.x);
-//     angleDiff = std::abs(angleToEnemy - playerAngle);
-//     if (angleDiff > M_PI) angleDiff = 2 * M_PI - angleDiff;
-
-//     // В пределах поля зрения?
-//     bool inFOV = (angleDiff < ((M_PI / 3.0f) / 2.0f));
-
-//     // Плавное изменение видимости
-//     float targetVisibility = inFOV ? 1.0f : 0.0f;
-//     float visibilitySpeed = 3.0f; // Скорость появления/исчезания
-
-//     if (mVisibility < targetVisibility) {
-//         mVisibility += visibilitySpeed * deltaTime.asSeconds();
-//         if (mVisibility > targetVisibility) mVisibility = targetVisibility;
-//     } else if (mVisibility > targetVisibility) {
-//         mVisibility -= visibilitySpeed * deltaTime.asSeconds();
-//         if (mVisibility < targetVisibility) mVisibility = targetVisibility;
-//     }
-
-//     // Также учитываем расстояние
-//     float distance = sqrt(
-//         std::pow(playerPos.x - mPosition.x, 2) +
-//         std::pow(playerPos.y - mPosition.y, 2)
-//     );
-
-//     // Дальние враги менее видны
-//     float distanceVisibility = 1.0f - (distance / 20.0f);
-//     if (distanceVisibility < 0.0f) distanceVisibility = 0.0f;
-
-//     mVisibility *= distanceVisibility;
-// }
 
 void Enemy::updateState(sf::Time deltaTime, const sf::Vector2f &playerPos)
 {
@@ -345,14 +183,12 @@ void Enemy::updateState(sf::Time deltaTime, const sf::Vector2f &playerPos)
     }
     else if (mState == EnemyState::CHASE)
     {
-        // Потерял игрока из виду
         mState = EnemyState::PATROL;
     }
 }
 
 void Enemy::patrol(sf::Time deltaTime)
 {
-    // Если нет цели патрулирования, выбираем новую
     if (mPatrolTarget == sf::Vector2f(0, 0))
     {
         std::random_device rd;
@@ -362,7 +198,6 @@ void Enemy::patrol(sf::Time deltaTime)
         mPatrolTarget = mPosition + sf::Vector2f(dist(gen), dist(gen));
     }
 
-    // Двигаемся к цели
     float dx = mPatrolTarget.x - mPosition.x;
     float dy = mPatrolTarget.y - mPosition.y;
     float distance = std::sqrt(dx * dx + dy * dy);
@@ -383,7 +218,6 @@ void Enemy::patrol(sf::Time deltaTime)
     }
     else
     {
-        // Достигли цели, выбираем новую
         mPatrolTarget = sf::Vector2f(0, 0);
         mAnimationState = AnimationState::IDLE;
     }
@@ -398,14 +232,12 @@ void Enemy::attackPlayer(Player &player, sf::Time deltaTime)
 
     if (mAttackTimer >= mAttackCooldown)
     {
-        // Проверяем расстояние до игрока
         float dx = player.getX() - mPosition.x;
         float dy = player.getY() - mPosition.y;
         float distance = std::sqrt(dx * dx + dy * dy);
 
         if (distance < mStats.attackRange)
         {
-            // Наносим урон игроку
             player.takeDamage(mStats.damage);
             mAttackTimer = sf::Time::Zero;
         }
@@ -419,7 +251,6 @@ void Enemy::render2D(sf::RenderTarget &target) const
 
     sf::CircleShape shape(0.2f);
 
-    // Цвет в зависимости от состояния
     switch (mAnimationState)
     {
     case AnimationState::ATTACK:
@@ -429,7 +260,7 @@ void Enemy::render2D(sf::RenderTarget &target) const
         shape.setFillColor(sf::Color::Red);
         break;
     default:
-        shape.setFillColor(sf::Color(255, 100, 100)); // Светло-красный для движения
+        shape.setFillColor(sf::Color(255, 100, 100));
     }
 
     shape.setPosition(mPosition.x - 0.1f, mPosition.y - 0.1f);
@@ -441,7 +272,6 @@ bool Enemy::isVisible(const sf::Vector2f &playerPos, const RayCalc &rayCalc) con
     if (!mAlive)
         return false;
 
-    // Создаем простой объект для проверки видимости
     class SimpleObject : public GameObject
     {
     public:
@@ -470,9 +300,9 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
     if (!isVisible(playerPos, rayCalc))
         return;
 
-    const sf::Texture *enemyTex = (mType == EnemyType::Boss)
-                                     ? renderer.getBossTexture()
-                                     : renderer.getEnemyTexture();
+    const sf::Texture *enemyTex = (getType() == EnemyType::Boss)
+                                      ? renderer.getBossTexture()
+                                      : renderer.getEnemyTexture();
     if (!enemyTex)
         return;
 
@@ -485,7 +315,7 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
         return;
 
     sf::IntRect region;
-    if (mType == EnemyType::Boss)
+    if (getType() == EnemyType::Boss)
     {
         const sf::Vector2u texSize = enemyTex->getSize();
         const int frameWidth = static_cast<int>(texSize.x / 2);
@@ -505,7 +335,6 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
     }
     else
     {
-        // Обычный враг: одна строка с 8 кадрами
         int col = mCurrentFrame % 8;
         region.left = col * 128;
         region.top = 0;
@@ -514,11 +343,11 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
     }
 
     sf::Color tint = sf::Color::White;
-    if (mType == EnemyType::Raider)
+    if (getType() == EnemyType::Raider)
     {
         tint = sf::Color(140, 220, 140);
     }
-    else if (mType == EnemyType::Boss)
+    else if (getType() == EnemyType::Boss)
     {
         tint = sf::Color(220, 120, 120);
     }

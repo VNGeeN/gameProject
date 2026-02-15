@@ -34,19 +34,17 @@ void EnemyManager::spawnEnemies(int count)
             int x = xDist(gen);
             int y = yDist(gen);
 
-            // Проверяем, что это пол, а не стена
             if (!mMap.isWall(static_cast<float>(x) + 0.5f,
                              static_cast<float>(y) + 0.5f))
             {
 
-                // Проверяем расстояние до других врагов
                 bool tooClose = false;
                 for (const auto &enemy : mEnemies)
                 {
                     float dx = enemy->getPosition().x - (x + 0.5f);
                     float dy = enemy->getPosition().y - (y + 0.5f);
                     if (dx * dx + dy * dy < 4.0f)
-                    { // Минимум 2 клетки между врагами
+                    { 
                         tooClose = true;
                         break;
                     }
@@ -226,7 +224,6 @@ void EnemyManager::update(sf::Time deltaTime, Player &player)
         }
     }
 
-    // Удаление мёртвых
     mEnemies.erase(
         std::remove_if(mEnemies.begin(), mEnemies.end(),
                        [](const auto &e)
@@ -295,11 +292,10 @@ void EnemyManager::render2D(sf::RenderTarget &target) const
 }
 
 void EnemyManager::render3D(Pseudo3DRenderer &renderer, const Player &player,
-                            const RayCalc &rayCalc) const // Добавьте const
+                            const RayCalc &rayCalc) const 
 {
     sf::Vector2f playerPos(player.getX(), player.getY());
 
-    // Сортируем врагов по расстоянию для правильного порядка отрисовки
     std::vector<std::pair<float, Enemy *>> sortedEnemies;
     for (const auto &enemy : mEnemies)
     {
@@ -309,7 +305,6 @@ void EnemyManager::render3D(Pseudo3DRenderer &renderer, const Player &player,
         sortedEnemies.push_back({distance, enemy.get()});
     }
 
-    // Сортируем по убыванию расстояния (рисуем дальних первыми)
     std::sort(sortedEnemies.begin(), sortedEnemies.end(),
               [](const auto &a, const auto &b)
               { return a.first > b.first; });

@@ -44,7 +44,6 @@ public:
 
     void updateVisibleChunks(float x, float y);
 
-    // Прямой доступ к поверхности (для чанков и отладки)
     Surface *getSurfaceDirect(int x, int y, Surface::Type type) const
     {
         if (x >= 0 && x < mWidth && y >= 0 && y < mHeight)

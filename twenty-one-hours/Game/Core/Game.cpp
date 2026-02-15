@@ -55,7 +55,10 @@ Game::Game()
 
     int initialEnemyCount = (mMap->getLevelType() == Map::LevelType::OpenWorld) ? 100 : 50;
     mEnemyManager->spawnEnemies(initialEnemyCount);
-    mEnemyManager->spawnBoss();
+    if (mMap->getLevelType() == Map::LevelType::OpenWorld)
+    {
+        mEnemyManager->spawnBoss();
+    }
 }
 
 void Game::run()
@@ -243,6 +246,7 @@ void Game::update(sf::Time deltaTime)
     }
 
     mPlayer->updateWeaponCooldown(deltaTime);
+    mPlayer->updateRegeneration(deltaTime);
 
     if (mMap->tryCollectAmmoPickup(mPlayer->getX(), mPlayer->getY()))
     {
@@ -307,9 +311,25 @@ void Game::update(sf::Time deltaTime)
     mShakeOffset.x = std::sin(mShakePhase * 2.1f) * totalShake;
     mShakeOffset.y = std::cos(mShakePhase * 1.7f) * totalShake;
 
+    if (!mPlayer->isAlive())
+    {
+        mLives = std::max(0, mLives - 1);
+        if (mLives == 0)
+        {
+            mState = GameState::Defeat;
+            mWindow.setMouseCursorVisible(true);
+            mWindow.setMouseCursorGrabbed(false);
+            return;
+        }
+
+        sf::Vector2f spawn = mMap->findPlayerStartPosition();
+        mPlayer->setPosition(spawn.x, spawn.y);
+        mPlayer->resetAfterDeath();
+    }
+
     handleLevelTransitions(deltaTime);
 
-    if (mEnemyManager && mEnemyManager->hasBoss() && !mEnemyManager->isBossAlive())
+    if (mEnemyManager && mMap->getLevelType() == Map::LevelType::OpenWorld && mEnemyManager->hasBoss() && !mEnemyManager->isBossAlive())
     {
         mState = GameState::Victory;
         mWindow.setMouseCursorVisible(true);
@@ -433,6 +453,13 @@ void Game::render()
         return;
     }
 
+    if (mState == GameState::Defeat)
+    {
+        renderDefeatScreen();
+        mWindow.display();
+        return;
+    }
+
     if (mDebug2DMode)
     {
         render2D();
@@ -538,6 +565,14 @@ void Game::renderHud()
                        std::to_string(weapon.magazineSize) +
                        " | reserve: " + std::to_string(weapon.reserveAmmo));
     mWindow.draw(ammoText);
+
+    sf::Text livesText;
+    livesText.setFont(mUiFont);
+    livesText.setCharacterSize(16);
+    livesText.setFillColor(sf::Color(220, 180, 120));
+    livesText.setString(L"Жизни: " + std::to_wstring(mLives));
+    livesText.setPosition(panelPos.x + panelSize.x + 16.0f, panelPos.y + 10.0f);
+    mWindow.draw(livesText);
 
     if (mPickupMessageTimer > 0.0f)
     {
@@ -718,6 +753,7 @@ void Game::handleMenuInput(const sf::Event &event)
         {
             if (mMainMenuIndex == 0)
             {
+                startNewGame();
                 mState = GameState::Playing;
                 mWindow.setMouseCursorVisible(false);
                 mWindow.setMouseCursorGrabbed(true);
@@ -731,7 +767,7 @@ void Game::handleMenuInput(const sf::Event &event)
         return;
     }
 
-    if (mState == GameState::Victory)
+    if (mState == GameState::Victory || mState == GameState::Defeat)
     {
         if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Return)
         {
@@ -891,6 +927,55 @@ void Game::renderVictoryScreen()
     mWindow.draw(hint);
 }
 
+void Game::renderDefeatScreen()
+{
+    sf::Vector2u size = mWindow.getSize();
+    sf::RectangleShape background(sf::Vector2f(static_cast<float>(size.x), static_cast<float>(size.y)));
+    background.setFillColor(sf::Color(12, 6, 6));
+    mWindow.draw(background);
+
+    sf::Text title;
+    title.setFont(mUiFont);
+    title.setString(L"Поражение");
+    title.setCharacterSize(48);
+    title.setFillColor(sf::Color(230, 120, 120));
+    title.setPosition(size.x * 0.5f - title.getGlobalBounds().width * 0.5f, 120.0f);
+    mWindow.draw(title);
+
+    sf::Text subtitle;
+    subtitle.setFont(mUiFont);
+    subtitle.setString(L"Жизни закончились");
+    subtitle.setCharacterSize(22);
+    subtitle.setFillColor(sf::Color(180, 130, 130));
+    subtitle.setPosition(size.x * 0.5f - subtitle.getGlobalBounds().width * 0.5f, 190.0f);
+    mWindow.draw(subtitle);
+
+    sf::Text hint;
+    hint.setFont(mUiFont);
+    hint.setString(L"Нажмите Enter, чтобы вернуться в меню");
+    hint.setCharacterSize(18);
+    hint.setFillColor(sf::Color(150, 130, 130));
+    hint.setPosition(size.x * 0.5f - hint.getGlobalBounds().width * 0.5f, size.y - 80.0f);
+    mWindow.draw(hint);
+}
+
+void Game::startNewGame()
+{
+    mLives = 1;
+    mMap->regenerate(Map::LevelType::Dungeon);
+
+    sf::Vector2f spawn = mMap->findPlayerStartPosition();
+    mPlayer->setPosition(spawn.x, spawn.y);
+    mPlayer->resetAfterDeath();
+
+    mEnemyManager = std::make_unique<EnemyManager>(*mMap);
+    mEnemyManager->spawnEnemies(50);
+
+    mTransitionCooldown = 0.0f;
+    mPickupMessageTimer = 0.0f;
+    mHitMarkerTimer = 0.0f;
+}
+
 void Game::renderPauseMenu()
 {
     sf::Vector2u size = mWindow.getSize();
@@ -1013,7 +1098,10 @@ void Game::handleLevelTransitions(sf::Time deltaTime)
     mEnemyManager = std::make_unique<EnemyManager>(*mMap);
     int transitionEnemyCount = (target == Map::LevelType::OpenWorld) ? 100 : 50;
     mEnemyManager->spawnEnemies(transitionEnemyCount);
-    // mEnemyManager->spawnBoss();
+    if (target == Map::LevelType::OpenWorld)
+    {
+        mEnemyManager->spawnBoss();
+    }
 
     mTransitionCooldown = 1.0f;
 }

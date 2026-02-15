@@ -817,6 +817,33 @@ bool Map::tryCollectAmmoPickup(float x, float y)
     return false;
 }
 
+bool Map::spawnAmmoPickupAt(const sf::Vector2f &position, float minDistance)
+{
+    if (isWall(position.x, position.y))
+    {
+        return false;
+    }
+
+    float minDistSq = minDistance * minDistance;
+    for (const auto &pickup : mAmmoPickups)
+    {
+        if (pickup.collected)
+        {
+            continue;
+        }
+
+        float dx = pickup.position.x - position.x;
+        float dy = pickup.position.y - position.y;
+        if (dx * dx + dy * dy < minDistSq)
+        {
+            return false;
+        }
+    }
+
+    mAmmoPickups.push_back({position, false});
+    return true;
+}
+
 void Map::spawnAmmoPickups(int count)
 {
     std::random_device rd;

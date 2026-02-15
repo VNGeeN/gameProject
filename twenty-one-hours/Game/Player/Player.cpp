@@ -240,6 +240,46 @@ void Player::addAmmoToAllWeapons()
     }
 }
 
+void Player::updateRegeneration(sf::Time deltaTime)
+{
+    if (!isAlive())
+    {
+        mHealthRegenTimer = 0.0f;
+        mArmorRegenTimer = 0.0f;
+        return;
+    }
+
+    mHealthRegenTimer += deltaTime.asSeconds();
+    mArmorRegenTimer += deltaTime.asSeconds();
+
+    while (mHealthRegenTimer >= 1.0f)
+    {
+        mHealthRegenTimer -= 1.0f;
+        if (mStats.health < mStats.maxHealth)
+        {
+            mStats.health = std::min(mStats.maxHealth, mStats.health + 1);
+        }
+    }
+
+    while (mArmorRegenTimer >= 1.5f)
+    {
+        mArmorRegenTimer -= 1.5f;
+        if (mStats.armor < mStats.maxArmor)
+        {
+            mStats.armor = std::min(mStats.maxArmor, mStats.armor + 1);
+        }
+    }
+}
+
+void Player::resetAfterDeath()
+{
+    mStats.health = mStats.maxHealth;
+    mStats.armor = mStats.maxArmor;
+    mHealthRegenTimer = 0.0f;
+    mArmorRegenTimer = 0.0f;
+    mWeaponCooldown = 0.0f;
+}
+
 bool Player::switchWeapon(int weaponIndex)
 {
     if (weaponIndex < 0 || weaponIndex >= static_cast<int>(WeaponType::Count))

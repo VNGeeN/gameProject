@@ -72,6 +72,8 @@ public:
     bool reloadActiveWeapon();
     void addAmmoToAllWeapons();
     bool switchWeapon(int weaponIndex);
+    void updateRegeneration(sf::Time deltaTime);
+    void resetAfterDeath();
 
     float fov;
 
@@ -85,4 +87,6 @@ private:
     std::array<WeaponStats, static_cast<std::size_t>(WeaponType::Count)> mWeapons;
     WeaponType mCurrentWeapon = WeaponType::Pistol;
     float mWeaponCooldown = 0.0f;
+    float mHealthRegenTimer = 0.0f;
+    float mArmorRegenTimer = 0.0f;
 };

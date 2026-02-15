@@ -8,6 +8,7 @@
 #include <random>
 #include <iostream>
 #include <limits>
+#include <algorithm>
 
 EnemyManager::EnemyManager(Map &map) : mMap(map) {}
 
@@ -221,6 +222,17 @@ void EnemyManager::update(sf::Time deltaTime, Player &player)
                 mEnemies[i]->setPosition(posA);
                 mEnemies[j]->setPosition(posB);
             }
+        }
+    }
+
+    static std::mt19937 dropRng(std::random_device{}());
+    static std::uniform_real_distribution<float> dropRoll(0.0f, 1.0f);
+
+    for (const auto &enemy : mEnemies)
+    {
+        if (!enemy->isAlive() && !enemy->isBoss() && dropRoll(dropRng) <= 0.2f)
+        {
+            mMap.spawnAmmoPickupAt(enemy->getPosition(), 0.9f);
         }
     }
 

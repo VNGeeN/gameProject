@@ -72,6 +72,7 @@ void Enemy::moveToPlayer(const sf::Vector2f &playerPos, float deltaTime)
 void Enemy::update(sf::Time deltaTime, const sf::Vector2f &playerPos, float playerAngle)
 {
     mLastPosition = mPosition;
+    mHitFlashTimer = std::max(0.0f, mHitFlashTimer - deltaTime.asSeconds());
     if (!mAlive)
     {
         mAnimationState = AnimationState::DEATH;
@@ -352,6 +353,14 @@ void Enemy::render3D(Pseudo3DRenderer &renderer, const sf::Vector2f &playerPos,
         tint = sf::Color(220, 120, 120);
     }
 
+    float flash = getHitFlashIntensity();
+    if (flash > 0.0f)
+    {
+        tint.r = static_cast<sf::Uint8>(std::min(255.0f, tint.r + flash * 110.0f));
+        tint.g = static_cast<sf::Uint8>(std::max(0.0f, tint.g - flash * 60.0f));
+        tint.b = static_cast<sf::Uint8>(std::max(0.0f, tint.b - flash * 60.0f));
+    }
+
     renderer.renderSprite(mPosition, playerPos, enemyTex, region, 0.0f, mVisibility, mSpriteWorldHeight, tint);
 }
 
@@ -364,6 +373,8 @@ void Enemy::takeDamage(int amount)
 {
     if (!mAlive || amount <= 0)
         return;
+
+    mHitFlashTimer = 0.18f;
 
     int remaining = amount;
     if (mStats.armor > 0)

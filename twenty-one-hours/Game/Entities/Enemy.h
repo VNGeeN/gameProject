@@ -1,6 +1,7 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <memory>
+#include <algorithm>
 #include "../Map/Map.h"
 #include "EnemyTypeProfile.h"
 
@@ -50,6 +51,7 @@ public:
     bool isAlive() const { return mAlive; }
     void die() { mAlive = false; }
     void takeDamage(int amount);
+    float getHitFlashIntensity() const { return std::max(0.0f, mHitFlashTimer / 0.18f); }
 
     sf::Vector2f getPosition() const { return mPosition; }
     void setPosition(const sf::Vector2f &position) { mPosition = position; }
@@ -69,6 +71,7 @@ public:
 
 private:
     float mVisibility = 1.0f;
+    float mHitFlashTimer = 0.0f;
     bool canSeePlayer(const sf::Vector2f &playerPos) const;
     void moveToPlayer(const sf::Vector2f &playerPos, float deltaTime);
 

@@ -30,15 +30,18 @@ private:
     void renderMainMenu();
     void renderPauseMenu();
     void renderVictoryScreen();
+    void renderDefeatScreen();
     void handleMenuInput(const sf::Event &event);
     void updateWeaponAnimation(sf::Time deltaTime, bool isMoving);
+    void startNewGame();
 
     enum class GameState
     {
         MainMenu,
         Playing,
         Paused,
-        Victory
+        Victory,
+        Defeat
     };
 
     sf::RenderWindow mWindow;
@@ -52,6 +55,7 @@ private:
     GameState mState = GameState::MainMenu;
     int mMainMenuIndex = 0;
     int mPauseMenuIndex = 0;
+    int mLives = 3;
 
     bool mDebugMode = false;
     void toggleDebugMode();

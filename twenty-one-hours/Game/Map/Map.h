@@ -85,6 +85,7 @@ public:
     const std::vector<Door> &getDoors() const { return mDoors; }
     const std::vector<AmmoPickup> &getAmmoPickups() const { return mAmmoPickups; }
     bool tryCollectAmmoPickup(float x, float y);
+    bool spawnAmmoPickupAt(const sf::Vector2f &position, float minDistance = 1.0f);
 
 private:
     struct Cell
